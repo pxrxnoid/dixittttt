@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Reverie — Игра ассоциаций</title>
+<title>XAxit — Игра ассоциаций</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
@@ -736,6 +736,59 @@ input {
 }
 
 /* ============================================================
+   CROP MODAL
+   ============================================================ */
+.crop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 400;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+}
+.crop-overlay.open { display: flex; }
+.crop-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  color: var(--gold);
+}
+.crop-container {
+  width: min(280px, 75vw);
+  aspect-ratio: 5/7;
+  position: relative;
+  overflow: hidden;
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  background: #000;
+  touch-action: none;
+}
+.crop-container img {
+  position: absolute;
+  cursor: grab;
+  user-select: none;
+  pointer-events: none;
+}
+.crop-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.crop-slider {
+  width: 180px;
+  accent-color: var(--gold);
+}
+.crop-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 480px) {
@@ -763,7 +816,7 @@ input {
   <div id="title-screen" class="screen active">
     <div class="title-particles" id="title-particles"></div>
     <button class="admin-btn" onclick="openAdmin()" title="Управление картинками">🖼</button>
-    <div class="title-logo">Reverie</div>
+    <div class="title-logo">XAxit</div>
     <div class="title-sub">игра ассоциаций</div>
     <div class="title-buttons">
       <button class="btn" onclick="showCreate()">Создать игру</button>
@@ -832,6 +885,21 @@ input {
 <!-- Status bar -->
 <div class="status-bar" id="status-bar"></div>
 
+<!-- Crop modal -->
+<div class="crop-overlay" id="crop-overlay">
+  <div class="crop-title">Обрезка изображения</div>
+  <div class="crop-container" id="crop-container"></div>
+  <div class="crop-controls">
+    <span>−</span>
+    <input type="range" class="crop-slider" id="crop-zoom" min="1" max="3" step="0.01" value="1" oninput="cropZoom(this.value)">
+    <span>+</span>
+  </div>
+  <div class="crop-buttons">
+    <button class="btn btn--secondary btn--small" onclick="closeCropModal()">Отмена</button>
+    <button class="btn btn--small" onclick="cropSave()">Сохранить</button>
+  </div>
+</div>
+
 <!-- Admin overlay -->
 <div class="admin-overlay" id="admin-overlay">
   <div class="admin-modal">
@@ -860,9 +928,8 @@ const DEFAULT_IMAGES = [
   'IMG_7085.JPG'
 ];
 let IMAGE_FILES = [...DEFAULT_IMAGES];
-let customImages = []; // [{id, dataUrl, name}]
-const HAND_SIZE = 2;
-const PEER_PREFIX = 'reverie-game-';
+const HAND_SIZE = 5;
+const PEER_PREFIX = 'xaxit-game-';
 const ADMIN_PASSWORD = 'maslo54';
 
 // ============================================================
@@ -1758,93 +1825,202 @@ function renderResults(body, state) {
 // already call hostOnStoryteller/etc. directly for host. Good.
 
 // ============================================================
-// INDEXEDDB — PERSISTENT IMAGE STORAGE
+// SERVER API — SHARED IMAGE STORAGE
 // ============================================================
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('reverie-images', 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains('images')) {
-        db.createObjectStore('images', { keyPath: 'id', autoIncrement: true });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function loadCustomImages() {
-  try {
-    const db = await openDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction('images', 'readonly');
-      const store = tx.objectStore('images');
-      const req = store.getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => resolve([]);
-    });
-  } catch { return []; }
-}
-
-async function saveCustomImage(dataUrl, name) {
-  const db = await openDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction('images', 'readwrite');
-    const store = tx.objectStore('images');
-    const req = store.add({ dataUrl, name, addedAt: Date.now() });
-    req.onsuccess = () => resolve(req.result);
-  });
-}
-
-async function deleteCustomImage(id) {
-  const db = await openDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction('images', 'readwrite');
-    const store = tx.objectStore('images');
-    store.delete(id);
-    tx.oncomplete = () => resolve();
-  });
-}
-
-function rebuildImageFiles() {
-  IMAGE_FILES = [...DEFAULT_IMAGES, ...customImages.map(c => c.dataUrl)];
-}
+let imageManifest = { defaultImages: [], customImages: [] };
 
 async function initImages() {
-  customImages = await loadCustomImages();
-  rebuildImageFiles();
+  try {
+    const res = await fetch('/api/images');
+    imageManifest = await res.json();
+    IMAGE_FILES = [...imageManifest.defaultImages, ...imageManifest.customImages];
+  } catch {
+    IMAGE_FILES = [...DEFAULT_IMAGES];
+    imageManifest = { defaultImages: [...DEFAULT_IMAGES], customImages: [] };
+  }
+}
+
+async function apiUploadImage(dataUrl, name) {
+  await fetch('/api/images', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Password': ADMIN_PASSWORD },
+    body: JSON.stringify({ dataUrl, name })
+  });
+  await initImages();
+}
+
+async function apiDeleteDefault(filename) {
+  await fetch('/api/images/default/' + encodeURIComponent(filename), {
+    method: 'DELETE',
+    headers: { 'X-Admin-Password': ADMIN_PASSWORD }
+  });
+  await initImages();
+}
+
+async function apiDeleteCustom(fullPath) {
+  const filename = fullPath.replace('custom-cards/', '');
+  await fetch('/api/images/custom/' + encodeURIComponent(filename), {
+    method: 'DELETE',
+    headers: { 'X-Admin-Password': ADMIN_PASSWORD }
+  });
+  await initImages();
 }
 
 // ============================================================
-// IMAGE COMPRESSION
+// CROP MODAL
 // ============================================================
-function compressImage(file, maxW = 1200, maxH = 1200, maxSizeKB = 300) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      if (w > maxW || h > maxH) {
-        const r = Math.min(maxW / w, maxH / h);
-        w = Math.round(w * r);
-        h = Math.round(h * r);
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      let q = 0.75;
-      let dataUrl = canvas.toDataURL('image/jpeg', q);
-      // Reduce quality until under maxSize
-      while (dataUrl.length > maxSizeKB * 1370 && q > 0.15) {
-        q -= 0.1;
-        dataUrl = canvas.toDataURL('image/jpeg', q);
-      }
-      URL.revokeObjectURL(img.src);
-      resolve(dataUrl);
-    };
-    img.src = URL.createObjectURL(file);
-  });
+const cropState = {
+  img: null,
+  fileName: '',
+  scale: 1,
+  minScale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  dragging: false,
+  startX: 0,
+  startY: 0,
+  containerW: 0,
+  containerH: 0
+};
+
+function openCropModal(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  if (file.size > 10 * 1024 * 1024) { showStatus('Файл слишком большой (макс. 10 МБ)'); return; }
+
+  cropState.fileName = file.name;
+  const overlay = document.getElementById('crop-overlay');
+  overlay.classList.add('open');
+
+  const img = new Image();
+  img.onload = () => {
+    cropState.img = img;
+    const container = document.getElementById('crop-container');
+    container.innerHTML = '';
+    const rect = container.getBoundingClientRect();
+    cropState.containerW = rect.width;
+    cropState.containerH = rect.height;
+
+    const scaleX = cropState.containerW / img.naturalWidth;
+    const scaleY = cropState.containerH / img.naturalHeight;
+    cropState.minScale = Math.max(scaleX, scaleY);
+    cropState.scale = cropState.minScale;
+    cropState.offsetX = (cropState.containerW - img.naturalWidth * cropState.scale) / 2;
+    cropState.offsetY = (cropState.containerH - img.naturalHeight * cropState.scale) / 2;
+
+    const el = document.createElement('img');
+    el.src = img.src;
+    el.draggable = false;
+    container.appendChild(el);
+    updateCropPreview();
+
+    const slider = document.getElementById('crop-zoom');
+    slider.min = cropState.minScale;
+    slider.max = cropState.minScale * 3;
+    slider.step = 0.001;
+    slider.value = cropState.scale;
+  };
+  img.src = URL.createObjectURL(file);
+
+  // Attach drag listeners
+  const container = document.getElementById('crop-container');
+  container.onmousedown = cropDragStart;
+  container.ontouchstart = cropDragStart;
+  document.onmousemove = cropDragMove;
+  document.ontouchmove = cropDragMove;
+  document.onmouseup = cropDragEnd;
+  document.ontouchend = cropDragEnd;
+}
+
+function updateCropPreview() {
+  const container = document.getElementById('crop-container');
+  const el = container.querySelector('img');
+  if (!el || !cropState.img) return;
+  const w = cropState.img.naturalWidth * cropState.scale;
+  const h = cropState.img.naturalHeight * cropState.scale;
+  el.style.width = w + 'px';
+  el.style.height = h + 'px';
+  el.style.left = cropState.offsetX + 'px';
+  el.style.top = cropState.offsetY + 'px';
+}
+
+function constrainCropOffset() {
+  const w = cropState.img.naturalWidth * cropState.scale;
+  const h = cropState.img.naturalHeight * cropState.scale;
+  cropState.offsetX = Math.min(0, Math.max(cropState.containerW - w, cropState.offsetX));
+  cropState.offsetY = Math.min(0, Math.max(cropState.containerH - h, cropState.offsetY));
+}
+
+function cropDragStart(e) {
+  e.preventDefault();
+  cropState.dragging = true;
+  const pt = e.touches ? e.touches[0] : e;
+  cropState.startX = pt.clientX - cropState.offsetX;
+  cropState.startY = pt.clientY - cropState.offsetY;
+}
+
+function cropDragMove(e) {
+  if (!cropState.dragging) return;
+  e.preventDefault();
+  const pt = e.touches ? e.touches[0] : e;
+  cropState.offsetX = pt.clientX - cropState.startX;
+  cropState.offsetY = pt.clientY - cropState.startY;
+  constrainCropOffset();
+  updateCropPreview();
+}
+
+function cropDragEnd() {
+  cropState.dragging = false;
+}
+
+function cropZoom(val) {
+  const cx = cropState.containerW / 2;
+  const cy = cropState.containerH / 2;
+  const imgX = (cx - cropState.offsetX) / cropState.scale;
+  const imgY = (cy - cropState.offsetY) / cropState.scale;
+  cropState.scale = parseFloat(val);
+  cropState.offsetX = cx - imgX * cropState.scale;
+  cropState.offsetY = cy - imgY * cropState.scale;
+  constrainCropOffset();
+  updateCropPreview();
+}
+
+async function cropSave() {
+  if (!cropState.img) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 840;
+  const ctx = canvas.getContext('2d');
+  const sx = -cropState.offsetX / cropState.scale;
+  const sy = -cropState.offsetY / cropState.scale;
+  const sw = cropState.containerW / cropState.scale;
+  const sh = cropState.containerH / cropState.scale;
+  ctx.drawImage(cropState.img, sx, sy, sw, sh, 0, 0, 600, 840);
+
+  let q = 0.8;
+  let dataUrl = canvas.toDataURL('image/jpeg', q);
+  while (dataUrl.length > 300 * 1370 && q > 0.2) {
+    q -= 0.1;
+    dataUrl = canvas.toDataURL('image/jpeg', q);
+  }
+
+  URL.revokeObjectURL(cropState.img.src);
+  closeCropModal();
+
+  showStatus('Загрузка...');
+  await apiUploadImage(dataUrl, cropState.fileName);
+  renderAdminGallery();
+  showStatus('Изображение добавлено!');
+}
+
+function closeCropModal() {
+  document.getElementById('crop-overlay').classList.remove('open');
+  document.getElementById('crop-container').innerHTML = '';
+  document.onmousemove = null;
+  document.ontouchmove = null;
+  document.onmouseup = null;
+  document.ontouchend = null;
+  cropState.img = null;
+  cropState.dragging = false;
 }
 
 // ============================================================
@@ -1893,42 +2069,51 @@ function checkAdminPassword() {
 }
 
 async function renderAdminGallery() {
+  // Re-fetch from server to get latest state
+  try {
+    const res = await fetch('/api/images');
+    imageManifest = await res.json();
+    IMAGE_FILES = [...imageManifest.defaultImages, ...imageManifest.customImages];
+  } catch {}
+
   const body = document.getElementById('admin-body');
-  const total = IMAGE_FILES.length;
-  const defaultCount = DEFAULT_IMAGES.length;
-  const customCount = customImages.length;
+  const defCount = imageManifest.defaultImages.length;
+  const custCount = imageManifest.customImages.length;
+  const total = defCount + custCount;
 
   let html = `
     <div class="admin-upload-area" id="admin-upload-area">
       <div style="font-size:28px;margin-bottom:8px;">📤</div>
-      <div style="color:var(--text);font-size:14px;">Нажмите или перетащите файлы</div>
+      <div style="color:var(--text);font-size:14px;">Нажмите или перетащите файл</div>
       <div class="admin-upload-hint">
-        JPG/PNG/WebP • Рекомендуется 600×840px (соотношение 5:7)<br>
-        Макс. размер: 5 МБ на файл • Изображения сжимаются автоматически (~300 КБ)
+        JPG/PNG/WebP • Изображение обрезается под карточку (5:7)<br>
+        Выходное разрешение: 600×840px • Сжатие до ~300 КБ
       </div>
-      <input type="file" id="admin-file-input" accept="image/*" multiple>
+      <input type="file" id="admin-file-input" accept="image/*">
     </div>
-    <div class="admin-count">Всего карт: ${total} (базовых: ${defaultCount}, добавленных: ${customCount})</div>
+    <div class="admin-count">Всего карт: ${total} (базовых: ${defCount}, добавленных: ${custCount})</div>
     <div class="admin-gallery" id="admin-gallery">
   `;
 
   // Default images
-  DEFAULT_IMAGES.forEach((src, i) => {
+  imageManifest.defaultImages.forEach((src) => {
     html += `
       <div class="admin-gallery-item">
         <img src="${src}" loading="lazy">
+        <button class="delete-btn" onclick="adminDeleteDefault('${src.replace(/'/g, "\\'")}')" title="Удалить">🗑</button>
         <div class="img-badge">базовая</div>
       </div>
     `;
   });
 
   // Custom images
-  customImages.forEach((img) => {
+  imageManifest.customImages.forEach((src) => {
+    const shortName = src.replace('custom-cards/', '').slice(0, 20);
     html += `
       <div class="admin-gallery-item">
-        <img src="${img.dataUrl}" loading="lazy">
-        <button class="delete-btn" onclick="adminDeleteImage(${img.id})" title="Удалить">🗑</button>
-        <div class="img-badge">${img.name || 'custom'}</div>
+        <img src="${src}" loading="lazy">
+        <button class="delete-btn" onclick="adminDeleteCustom('${src.replace(/'/g, "\\'")}')" title="Удалить">🗑</button>
+        <div class="img-badge">${shortName}</div>
       </div>
     `;
   });
@@ -1946,36 +2131,21 @@ async function renderAdminGallery() {
   uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
     uploadArea.style.borderColor = '';
-    handleAdminFiles(e.dataTransfer.files);
+    if (e.dataTransfer.files.length > 0) openCropModal(e.dataTransfer.files[0]);
   });
-  fileInput.addEventListener('change', () => handleAdminFiles(fileInput.files));
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) openCropModal(fileInput.files[0]);
+    fileInput.value = '';
+  });
 }
 
-async function handleAdminFiles(files) {
-  if (!files || files.length === 0) return;
-  const uploadArea = document.getElementById('admin-upload-area');
-  const origHTML = uploadArea.innerHTML;
-  uploadArea.innerHTML = '<div style="color:var(--gold);font-size:14px;">Сжатие и сохранение...</div>';
-
-  for (const file of files) {
-    if (!file.type.startsWith('image/')) continue;
-    if (file.size > 5 * 1024 * 1024) {
-      showStatus(`${file.name} слишком большой (макс. 5 МБ)`);
-      continue;
-    }
-    const dataUrl = await compressImage(file);
-    const id = await saveCustomImage(dataUrl, file.name);
-    customImages.push({ id, dataUrl, name: file.name });
-  }
-
-  rebuildImageFiles();
+async function adminDeleteDefault(filename) {
+  await apiDeleteDefault(filename);
   renderAdminGallery();
 }
 
-async function adminDeleteImage(id) {
-  await deleteCustomImage(id);
-  customImages = customImages.filter(c => c.id !== id);
-  rebuildImageFiles();
+async function adminDeleteCustom(fullPath) {
+  await apiDeleteCustom(fullPath);
   renderAdminGallery();
 }
 
