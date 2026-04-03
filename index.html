@@ -491,7 +491,6 @@ input {
   opacity: 0.35;
   pointer-events: none;
 }
-.card-container svg,
 .card-container img {
   width: 100%;
   height: 100%;
@@ -751,10 +750,9 @@ document.addEventListener('input', e => {
 });
 
 // ============================================================
-// CARD GENERATION
+// CARD GENERATION — photo cards only
 // ============================================================
 
-/* Photo cards — real images in the same directory */
 const IMAGE_FILES = [
   '1E8B0269-6F4A-455E-8E32-D92A80529A71.JPG',
   '4A06414C-606A-4326-B9AF-F92E56E52264 (1).JPG',
@@ -766,354 +764,17 @@ const IMAGE_FILES = [
   'IMG_7085.JPG'
 ];
 
-/* Color palettes — each is an array of 3-5 colors with a mood */
-const PALETTES = [
-  ['#1a0a2e', '#5c2d91', '#b97de8', '#f4d896', '#ff6b6b'],  // mystic violet
-  ['#0b132b', '#1c2541', '#3a506b', '#5bc0be', '#c5e8d0'],  // deep ocean
-  ['#2d0a0a', '#8b1a1a', '#d4573b', '#f0a858', '#ffecd2'],  // ember glow
-  ['#0d1b2a', '#1b263b', '#415a77', '#778da9', '#e0e1dd'],  // steel night
-  ['#1a1a2e', '#16213e', '#0f3460', '#e94560', '#ff9a76'],  // neon abyss
-  ['#2b2d42', '#8d99ae', '#edf2f4', '#ef233c', '#d90429'],  // stark crimson
-  ['#0b0c10', '#1f2833', '#c5c6c7', '#66fcf1', '#45a29e'],  // cyber teal
-  ['#1e1e2f', '#2d2d44', '#6b4c9a', '#a855f7', '#f9cb40'],  // twilight gold
-  ['#0a0a23', '#1b2838', '#2a5298', '#4fc3f7', '#ffffff'],  // starlight
-  ['#1c0b19', '#3b1c32', '#6b2fa0', '#d4a5ff', '#ffeaa7'],  // lavender dream
-  ['#0d2818', '#04471c', '#058c42', '#16db93', '#f0f3bd'],  // enchanted forest
-  ['#1a0000', '#4a0e0e', '#8b3a3a', '#cc7a7a', '#f5deb3'],  // dried rose
-  ['#0f0f23', '#232350', '#4a4e82', '#ffd700', '#fff8dc'],   // midnight gold
-  ['#1a1423', '#2d1b4e', '#582c83', '#e040fb', '#ff80ab'],  // neon orchid
-  ['#0a1628', '#152238', '#3d5a80', '#ee6c4d', '#f7ede2'],  // warm dusk
-  ['#0d0d0d', '#2c2c2c', '#5a5a5a', '#8a8a8a', '#d4d4d4'],  // monochrome
-  ['#1b0a2a', '#3e1c5e', '#7b3fa0', '#c792ea', '#f3e5f5'],  // soft purple
-  ['#182628', '#1e4d2b', '#6a994e', '#a7c957', '#f2e8cf'],  // mossy
-  ['#1c1427', '#331d4e', '#774aa0', '#d4a4ff', '#74f0ed'],  // aurora
-  ['#201a10', '#3d2e1a', '#6e5029', '#c49a3c', '#f5e6c8'],  // antique gold
-];
+const HAND_SIZE = 2; // With 8 photos, each player gets 2 cards
 
-function generateCards(count) {
+function generateCards() {
   G.cards = {};
   const ids = [];
-  // First cards are photo cards
   for (let i = 0; i < IMAGE_FILES.length; i++) {
     const id = 'card_' + i;
-    G.cards[id] = { id, isImage: true, src: IMAGE_FILES[i] };
-    ids.push(id);
-  }
-  // Remaining cards are procedurally generated
-  for (let i = IMAGE_FILES.length; i < count; i++) {
-    const id = 'card_' + i;
-    const palette = PALETTES[i % PALETTES.length];
-    const seed = i;
-    G.cards[id] = { id, isImage: false, palette, seed, type: i % 12 };
+    G.cards[id] = { id, src: IMAGE_FILES[i] };
     ids.push(id);
   }
   return ids;
-}
-
-/* Seeded pseudo-random for card generation */
-function seededRng(seed) {
-  let s = seed;
-  return function() {
-    s = (s * 16807 + 0) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
-}
-
-/* Render a card SVG based on its type and seed */
-function renderCard(card) {
-  const r = seededRng(card.seed * 7919 + 137);
-  const p = card.palette;
-  const type = card.type;
-
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 168" preserveAspectRatio="xMidYMid slice">`;
-  svg += `<defs>`;
-  svg += `<linearGradient id="bg${card.id}" x1="0" y1="0" x2="${r()}" y2="1">`;
-  svg += `<stop offset="0%" stop-color="${p[0]}"/>`;
-  svg += `<stop offset="100%" stop-color="${p[1]}"/>`;
-  svg += `</linearGradient>`;
-  svg += `<radialGradient id="rg${card.id}" cx="${30+r()*60}%" cy="${30+r()*60}%" r="50%">`;
-  svg += `<stop offset="0%" stop-color="${p[3]}" stop-opacity="0.6"/>`;
-  svg += `<stop offset="100%" stop-color="${p[0]}" stop-opacity="0"/>`;
-  svg += `</radialGradient>`;
-  svg += `</defs>`;
-  svg += `<rect width="120" height="168" fill="url(#bg${card.id})"/>`;
-  svg += `<rect width="120" height="168" fill="url(#rg${card.id})"/>`;
-
-  switch (type) {
-    case 0: svg += cardConcentricCircles(r, p); break;
-    case 1: svg += cardSpiralLines(r, p); break;
-    case 2: svg += cardFloatingShapes(r, p); break;
-    case 3: svg += cardMoon(r, p); break;
-    case 4: svg += cardWaves(r, p); break;
-    case 5: svg += cardEye(r, p); break;
-    case 6: svg += cardStaircase(r, p); break;
-    case 7: svg += cardDotField(r, p); break;
-    case 8: svg += cardFlower(r, p); break;
-    case 9: svg += cardDoor(r, p); break;
-    case 10: svg += cardSpiral(r, p); break;
-    case 11: svg += cardCrystal(r, p); break;
-  }
-
-  svg += `</svg>`;
-  return svg;
-}
-
-function cardConcentricCircles(r, p) {
-  let s = '';
-  const cx = 40 + r() * 40, cy = 50 + r() * 68;
-  for (let i = 6; i >= 0; i--) {
-    const radius = 12 + i * (8 + r() * 6);
-    const color = p[2 + Math.floor(r() * (p.length - 2))];
-    const opacity = 0.15 + r() * 0.35;
-    s += `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="${color}" opacity="${opacity}"/>`;
-  }
-  // Add some floating dots
-  for (let i = 0; i < 12; i++) {
-    const x = r() * 120, y = r() * 168, size = 1 + r() * 3;
-    s += `<circle cx="${x}" cy="${y}" r="${size}" fill="${p[3]}" opacity="${0.2 + r() * 0.5}"/>`;
-  }
-  return s;
-}
-
-function cardSpiralLines(r, p) {
-  let s = '';
-  const cx = 60, cy = 84;
-  for (let j = 0; j < 3; j++) {
-    let d = 'M ';
-    const ox = (r() - 0.5) * 30, oy = (r() - 0.5) * 40;
-    for (let i = 0; i < 60; i++) {
-      const angle = i * 0.2 + j * 2.09;
-      const radius = 3 + i * (0.8 + r() * 0.3);
-      const x = cx + ox + Math.cos(angle) * radius;
-      const y = cy + oy + Math.sin(angle) * radius;
-      d += `${x.toFixed(1)} ${y.toFixed(1)} `;
-      if (i === 0) d += 'L ';
-    }
-    s += `<path d="${d}" fill="none" stroke="${p[2 + j % 3]}" stroke-width="${1 + r()}" opacity="${0.4 + r() * 0.4}" stroke-linecap="round"/>`;
-  }
-  return s;
-}
-
-function cardFloatingShapes(r, p) {
-  let s = '';
-  for (let i = 0; i < 8; i++) {
-    const x = r() * 120, y = r() * 168;
-    const size = 8 + r() * 25;
-    const color = p[1 + Math.floor(r() * (p.length - 1))];
-    const opacity = 0.15 + r() * 0.4;
-    const rot = r() * 360;
-    if (r() > 0.5) {
-      s += `<rect x="${x - size/2}" y="${y - size/2}" width="${size}" height="${size}" fill="${color}" opacity="${opacity}" transform="rotate(${rot} ${x} ${y})" rx="${r() * size * 0.3}"/>`;
-    } else {
-      const points = [];
-      const sides = 3 + Math.floor(r() * 4);
-      for (let j = 0; j < sides; j++) {
-        const a = (j / sides) * Math.PI * 2 + rot * Math.PI / 180;
-        points.push(`${x + Math.cos(a) * size * 0.6},${y + Math.sin(a) * size * 0.6}`);
-      }
-      s += `<polygon points="${points.join(' ')}" fill="${color}" opacity="${opacity}"/>`;
-    }
-  }
-  return s;
-}
-
-function cardMoon(r, p) {
-  let s = '';
-  const cx = 35 + r() * 50, cy = 30 + r() * 40;
-  const moonR = 18 + r() * 14;
-  const offset = 8 + r() * 10;
-  // Moon crescent
-  s += `<circle cx="${cx}" cy="${cy}" r="${moonR}" fill="${p[3]}"/>`;
-  s += `<circle cx="${cx + offset}" cy="${cy - offset * 0.5}" r="${moonR * 0.85}" fill="${p[0]}"/>`;
-  // Glow
-  s += `<circle cx="${cx}" cy="${cy}" r="${moonR * 2}" fill="${p[3]}" opacity="0.08"/>`;
-  // Stars
-  for (let i = 0; i < 20; i++) {
-    const x = r() * 120, y = r() * 168, sz = 0.5 + r() * 2;
-    s += `<circle cx="${x}" cy="${y}" r="${sz}" fill="${p[4] || p[3]}" opacity="${0.3 + r() * 0.6}"/>`;
-  }
-  // Horizon line
-  const hy = 120 + r() * 30;
-  s += `<line x1="0" y1="${hy}" x2="120" y2="${hy}" stroke="${p[2]}" stroke-width="0.5" opacity="0.3"/>`;
-  // Reflection
-  s += `<ellipse cx="${cx}" cy="${hy + 15}" rx="${moonR * 0.6}" ry="${4 + r() * 6}" fill="${p[3]}" opacity="0.15"/>`;
-  return s;
-}
-
-function cardWaves(r, p) {
-  let s = '';
-  for (let w = 0; w < 6; w++) {
-    const y = 20 + w * 26 + r() * 10;
-    let d = `M -10 ${y}`;
-    for (let x = 0; x <= 140; x += 10) {
-      const cy = y + Math.sin(x * 0.05 + w * 1.2 + r() * 3) * (8 + r() * 12);
-      d += ` Q ${x - 5} ${cy - 5 * (r() - 0.5)}, ${x} ${cy}`;
-    }
-    d += ` L 130 180 L -10 180 Z`;
-    const color = p[1 + w % (p.length - 1)];
-    s += `<path d="${d}" fill="${color}" opacity="${0.15 + r() * 0.25}"/>`;
-  }
-  // Foam dots
-  for (let i = 0; i < 15; i++) {
-    s += `<circle cx="${r() * 120}" cy="${r() * 168}" r="${0.5 + r() * 1.5}" fill="${p[4] || p[3]}" opacity="${0.2 + r() * 0.3}"/>`;
-  }
-  return s;
-}
-
-function cardEye(r, p) {
-  let s = '';
-  const cx = 60, cy = 70 + r() * 28;
-  const ew = 40 + r() * 15, eh = 18 + r() * 10;
-  // Outer glow
-  s += `<ellipse cx="${cx}" cy="${cy}" rx="${ew + 10}" ry="${eh + 10}" fill="${p[2]}" opacity="0.1"/>`;
-  // Eye shape
-  s += `<ellipse cx="${cx}" cy="${cy}" rx="${ew}" ry="${eh}" fill="${p[1]}" stroke="${p[2]}" stroke-width="1.5" opacity="0.7"/>`;
-  // Iris
-  const irisR = eh * 0.7;
-  s += `<circle cx="${cx}" cy="${cy}" r="${irisR}" fill="${p[3]}"/>`;
-  s += `<circle cx="${cx}" cy="${cy}" r="${irisR * 0.5}" fill="${p[4] || p[2]}"/>`;
-  // Pupil
-  s += `<circle cx="${cx}" cy="${cy}" r="${irisR * 0.22}" fill="${p[0]}"/>`;
-  // Highlight
-  s += `<circle cx="${cx + irisR * 0.25}" cy="${cy - irisR * 0.25}" r="${irisR * 0.12}" fill="white" opacity="0.7"/>`;
-  // Rays
-  for (let i = 0; i < 12; i++) {
-    const angle = (i / 12) * Math.PI * 2;
-    const len = ew + 10 + r() * 20;
-    s += `<line x1="${cx + Math.cos(angle) * ew}" y1="${cy + Math.sin(angle) * eh}" x2="${cx + Math.cos(angle) * len}" y2="${cy + Math.sin(angle) * len}" stroke="${p[3]}" stroke-width="0.5" opacity="${0.2 + r() * 0.3}"/>`;
-  }
-  return s;
-}
-
-function cardStaircase(r, p) {
-  let s = '';
-  const startX = 15 + r() * 20, startY = 150;
-  const stepW = 12 + r() * 8, stepH = 10 + r() * 5;
-  const steps = 7 + Math.floor(r() * 4);
-  const goRight = r() > 0.5;
-  for (let i = 0; i < steps; i++) {
-    const x = goRight ? startX + i * stepW : startX + (steps - 1 - i) * stepW;
-    const y = startY - i * stepH;
-    const opacity = 0.3 + (i / steps) * 0.5;
-    s += `<rect x="${x}" y="${y}" width="${stepW + 2}" height="${stepH + 2}" fill="${p[2]}" opacity="${opacity}" rx="1"/>`;
-  }
-  // Light at top
-  const topX = goRight ? startX + (steps - 0.5) * stepW : startX + 0.5 * stepW;
-  const topY = startY - steps * stepH;
-  s += `<circle cx="${topX}" cy="${topY - 10}" r="${15 + r() * 10}" fill="${p[3]}" opacity="0.2"/>`;
-  s += `<circle cx="${topX}" cy="${topY - 10}" r="${4 + r() * 3}" fill="${p[4] || p[3]}" opacity="0.7"/>`;
-  // Ambient particles
-  for (let i = 0; i < 10; i++) {
-    s += `<circle cx="${r() * 120}" cy="${r() * 168}" r="${0.5 + r() * 1.5}" fill="${p[3]}" opacity="${0.1 + r() * 0.3}"/>`;
-  }
-  return s;
-}
-
-function cardDotField(r, p) {
-  let s = '';
-  const cx = 60 + (r() - 0.5) * 40;
-  const cy = 84 + (r() - 0.5) * 40;
-  for (let i = 0; i < 80; i++) {
-    const angle = r() * Math.PI * 2;
-    const dist = r() * r() * 70;
-    const x = cx + Math.cos(angle) * dist;
-    const y = cy + Math.sin(angle) * dist;
-    const size = 0.5 + r() * 3;
-    const color = p[1 + Math.floor(r() * (p.length - 1))];
-    s += `<circle cx="${x}" cy="${y}" r="${size}" fill="${color}" opacity="${0.3 + r() * 0.6}"/>`;
-  }
-  return s;
-}
-
-function cardFlower(r, p) {
-  let s = '';
-  const cx = 50 + r() * 20, cy = 70 + r() * 30;
-  const petals = 5 + Math.floor(r() * 4);
-  const petalR = 14 + r() * 10;
-  for (let i = 0; i < petals; i++) {
-    const angle = (i / petals) * Math.PI * 2 + r() * 0.3;
-    const px = cx + Math.cos(angle) * petalR;
-    const py = cy + Math.sin(angle) * petalR;
-    s += `<ellipse cx="${px}" cy="${py}" rx="${petalR * 0.6}" ry="${petalR * 0.3}" fill="${p[2 + (i % 2)]}" opacity="${0.3 + r() * 0.3}" transform="rotate(${angle * 180 / Math.PI + 90} ${px} ${py})"/>`;
-  }
-  // Center
-  s += `<circle cx="${cx}" cy="${cy}" r="${5 + r() * 4}" fill="${p[4] || p[3]}" opacity="0.8"/>`;
-  // Stem
-  s += `<line x1="${cx}" y1="${cy + petalR}" x2="${cx - 5 + r() * 10}" y2="168" stroke="${p[2]}" stroke-width="1.5" opacity="0.3"/>`;
-  // Small dots
-  for (let i = 0; i < 8; i++) {
-    s += `<circle cx="${r() * 120}" cy="${r() * 168}" r="${0.8 + r()}" fill="${p[3]}" opacity="${0.15 + r() * 0.25}"/>`;
-  }
-  return s;
-}
-
-function cardDoor(r, p) {
-  let s = '';
-  const dx = 35 + r() * 15, dy = 35 + r() * 15;
-  const dw = 35 + r() * 15, dh = 65 + r() * 20;
-  // Door frame
-  s += `<rect x="${dx - 3}" y="${dy - 3}" width="${dw + 6}" height="${dh + 6}" fill="${p[2]}" opacity="0.5" rx="2"/>`;
-  // Door opening — inner light
-  s += `<rect x="${dx}" y="${dy}" width="${dw}" height="${dh}" fill="${p[3]}" opacity="0.3" rx="1"/>`;
-  // Light spill
-  const lightPath = `M ${dx} ${dy + dh} L ${dx - 15} ${dy + dh + 30} L ${dx + dw + 15} ${dy + dh + 30} L ${dx + dw} ${dy + dh} Z`;
-  s += `<path d="${lightPath}" fill="${p[3]}" opacity="0.1"/>`;
-  // Knob
-  s += `<circle cx="${dx + dw - 8}" cy="${dy + dh * 0.5}" r="2.5" fill="${p[4] || p[3]}" opacity="0.6"/>`;
-  // Particles through door
-  for (let i = 0; i < 10; i++) {
-    const x = dx + r() * dw, y = dy + r() * dh;
-    s += `<circle cx="${x}" cy="${y}" r="${0.5 + r() * 1.5}" fill="${p[4] || p[3]}" opacity="${0.3 + r() * 0.5}"/>`;
-  }
-  return s;
-}
-
-function cardSpiral(r, p) {
-  let s = '';
-  const cx = 55 + r() * 10, cy = 80 + r() * 10;
-  let d = `M ${cx} ${cy}`;
-  for (let i = 1; i < 80; i++) {
-    const angle = i * 0.15;
-    const radius = i * (0.7 + r() * 0.2);
-    const x = cx + Math.cos(angle) * radius;
-    const y = cy + Math.sin(angle) * radius;
-    d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
-  }
-  s += `<path d="${d}" fill="none" stroke="${p[3]}" stroke-width="${1.5 + r()}" opacity="0.5" stroke-linecap="round"/>`;
-  // Inner glow
-  s += `<circle cx="${cx}" cy="${cy}" r="${8 + r() * 6}" fill="${p[3]}" opacity="0.2"/>`;
-  s += `<circle cx="${cx}" cy="${cy}" r="${3}" fill="${p[4] || p[3]}" opacity="0.7"/>`;
-  // Scatter
-  for (let i = 0; i < 6; i++) {
-    s += `<circle cx="${r() * 120}" cy="${r() * 168}" r="${1 + r() * 2}" fill="${p[2]}" opacity="${0.2 + r() * 0.2}"/>`;
-  }
-  return s;
-}
-
-function cardCrystal(r, p) {
-  let s = '';
-  const numCrystals = 3 + Math.floor(r() * 3);
-  for (let c = 0; c < numCrystals; c++) {
-    const bx = 15 + r() * 80, by = 40 + r() * 90;
-    const w = 8 + r() * 12, h = 25 + r() * 35;
-    const points = [
-      `${bx},${by - h * 0.5}`,
-      `${bx + w * 0.5},${by}`,
-      `${bx + w * 0.3},${by + h * 0.5}`,
-      `${bx - w * 0.3},${by + h * 0.5}`,
-      `${bx - w * 0.5},${by}`
-    ];
-    const color = p[2 + Math.floor(r() * (p.length - 2))];
-    s += `<polygon points="${points.join(' ')}" fill="${color}" opacity="${0.25 + r() * 0.3}" stroke="${color}" stroke-width="0.5"/>`;
-    // Internal facet line
-    s += `<line x1="${bx}" y1="${by - h * 0.5}" x2="${bx}" y2="${by + h * 0.5}" stroke="${p[4] || p[3]}" stroke-width="0.5" opacity="0.2"/>`;
-  }
-  // Sparkles
-  for (let i = 0; i < 10; i++) {
-    const x = r() * 120, y = r() * 168, sz = 0.5 + r() * 2;
-    s += `<circle cx="${x}" cy="${y}" r="${sz}" fill="${p[4] || p[3]}" opacity="${0.2 + r() * 0.4}"/>`;
-  }
-  return s;
 }
 
 /* Create a card DOM element */
@@ -1123,14 +784,10 @@ function createCardElement(cardId, opts = {}) {
   div.className = 'card-container';
   if (opts.disabled) div.classList.add('disabled');
   div.dataset.cardId = cardId;
-  if (card.isImage) {
-    const img = document.createElement('img');
-    img.src = card.src;
-    img.draggable = false;
-    div.appendChild(img);
-  } else {
-    div.innerHTML = renderCard(card);
-  }
+  const img = document.createElement('img');
+  img.src = card.src;
+  img.draggable = false;
+  div.appendChild(img);
   if (opts.label) {
     const lbl = document.createElement('span');
     lbl.className = 'card-number';
@@ -1153,15 +810,13 @@ function startGame() {
   G.round = 0;
   G.storytellerIdx = 0;
   G.gameOver = false;
+  G.allCardIds = generateCards();
 
-  // Generate deck — 60 unique cards
-  const allIds = generateCards(60);
-  G.deck = shuffle([...allIds]);
-
-  // Deal 6 cards to each player
+  // Shuffle and deal
+  G.deck = shuffle([...G.allCardIds]);
   for (const player of G.players) {
     player.hand = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < HAND_SIZE; i++) {
       if (G.deck.length > 0) player.hand.push(G.deck.pop());
     }
   }
@@ -1189,13 +844,7 @@ function startRound() {
   G.shuffledPool = [];
   G.selectedCard = null;
 
-  // Check if enough cards to play
-  const cardsNeeded = G.players.length; // each player plays 1 card
-  const totalInHands = G.players.reduce((sum, p) => sum + p.hand.length, 0);
-  if (totalInHands < cardsNeeded) {
-    endGame();
-    return;
-  }
+  // Cards are recycled each round, so no deck exhaustion check needed
 
   // Show handoff for storyteller
   showHandoff(
@@ -1502,8 +1151,7 @@ function showResults() {
 function showScoreboard() {
   // Check game over
   const maxScore = Math.max(...G.players.map(p => p.score));
-  const deckEmpty = G.deck.length === 0 && G.players.some(p => p.hand.length === 0);
-  G.gameOver = maxScore >= G.WIN_SCORE || deckEmpty;
+  G.gameOver = maxScore >= G.WIN_SCORE;
 
   const title = document.getElementById('scoreboard-title');
   const banner = document.getElementById('game-over-banner');
@@ -1553,9 +1201,16 @@ function nextRound() {
   // Rotate storyteller
   G.storytellerIdx = (G.storytellerIdx + 1) % G.players.length;
 
-  // Refill hands to 6
+  // Recycle: collect all cards not in any player's hand back into the deck
+  const inHands = new Set();
   for (const player of G.players) {
-    while (player.hand.length < 6 && G.deck.length > 0) {
+    for (const c of player.hand) inHands.add(c);
+  }
+  G.deck = shuffle(G.allCardIds.filter(id => !inHands.has(id)));
+
+  // Refill hands to HAND_SIZE
+  for (const player of G.players) {
+    while (player.hand.length < HAND_SIZE && G.deck.length > 0) {
       player.hand.push(G.deck.pop());
     }
   }
