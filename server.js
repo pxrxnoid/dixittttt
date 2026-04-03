@@ -22,7 +22,11 @@ if (!fs.existsSync(CUSTOM_DIR)) fs.mkdirSync(CUSTOM_DIR);
 
 function loadManifest() {
   if (fs.existsSync(MANIFEST)) {
-    return JSON.parse(fs.readFileSync(MANIFEST, 'utf-8'));
+    try {
+      return JSON.parse(fs.readFileSync(MANIFEST, 'utf-8'));
+    } catch {
+      // corrupted manifest — recreate
+    }
   }
   const m = { defaultImages: [...ALL_DEFAULTS], customImages: [] };
   saveManifest(m);
@@ -39,40 +43,63 @@ function requireAuth(req, res, next) {
   next();
 }
 
+// Body parser
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(__dirname));
 
+// API routes FIRST (before static middleware)
 app.get('/api/images', (req, res) => {
   res.json(loadManifest());
 });
 
 app.post('/api/images', requireAuth, (req, res) => {
-  const { dataUrl, name } = req.body;
-  if (!dataUrl) return res.status(400).json({ error: 'No image data' });
-  const safeName = (name || 'image').replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 50);
-  const filename = Date.now() + '_' + safeName + '.jpg';
-  const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
-  fs.writeFileSync(path.join(CUSTOM_DIR, filename), Buffer.from(base64, 'base64'));
-  const m = loadManifest();
-  m.customImages.push('custom-cards/' + filename);
-  saveManifest(m);
-  res.json({ ok: true, path: 'custom-cards/' + filename });
+  try {
+    const { dataUrl, name } = req.body;
+    if (!dataUrl) return res.status(400).json({ error: 'No image data' });
+    const safeName = (name || 'image').replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 50);
+    const filename = Date.now() + '_' + safeName + '.jpg';
+    const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+    fs.writeFileSync(path.join(CUSTOM_DIR, filename), Buffer.from(base64, 'base64'));
+    const m = loadManifest();
+    m.customImages.push('custom-cards/' + filename);
+    saveManifest(m);
+    res.json({ ok: true, path: 'custom-cards/' + filename });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.delete('/api/images/default/:filename', requireAuth, (req, res) => {
-  const m = loadManifest();
-  m.defaultImages = m.defaultImages.filter(f => f !== req.params.filename);
-  saveManifest(m);
-  res.json({ ok: true });
+  try {
+    const m = loadManifest();
+    m.defaultImages = m.defaultImages.filter(f => f !== req.params.filename);
+    saveManifest(m);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.delete('/api/images/custom/:filename', requireAuth, (req, res) => {
-  const m = loadManifest();
-  const fullPath = 'custom-cards/' + req.params.filename;
-  m.customImages = m.customImages.filter(f => f !== fullPath);
-  saveManifest(m);
-  try { fs.unlinkSync(path.join(CUSTOM_DIR, req.params.filename)); } catch {}
-  res.json({ ok: true });
+  try {
+    const m = loadManifest();
+    const fullPath = 'custom-cards/' + req.params.filename;
+    m.customImages = m.customImages.filter(f => f !== fullPath);
+    saveManifest(m);
+    try { fs.unlinkSync(path.join(CUSTOM_DIR, req.params.filename)); } catch {}
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-app.listen(PORT, () => console.log(`XAxit running on http://localhost:${PORT}`));
+// Static files AFTER API routes
+app.use(express.static(__dirname));
+
+app.listen(PORT, () => {
+  console.log('');
+  console.log('=================================');
+  console.log(`  XAxit running on http://localhost:${PORT}`);
+  console.log('  Open this URL in your browser!');
+  console.log('=================================');
+  console.log('');
+});

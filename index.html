@@ -1361,6 +1361,13 @@ function hostSendState() {
 function doStartGame() {
   if (HOST.players.length < 2) return;
 
+  const totalCards = IMAGE_FILES.length;
+  const minNeeded = HOST.players.length * 2; // at least 2 per player
+  if (totalCards < minNeeded) {
+    showStatus(`Недостаточно карт! Нужно минимум ${minNeeded}, есть ${totalCards}. Добавьте изображения.`);
+    return;
+  }
+
   // Generate card IDs
   HOST.allCardIds = IMAGE_FILES.map((_, i) => 'card_' + i);
   HOST.round = 0;
@@ -1369,32 +1376,30 @@ function doStartGame() {
   // Reset scores
   HOST.players.forEach(p => { p.score = 0; p.hand = []; });
 
-  // Deal initial hands — recycle deck if needed
+  // Deal initial hands
   dealHands();
   hostStartRound();
 }
 
 function dealHands() {
-  // Collect all cards NOT in anyone's hand into the deck
+  // Collect all cards currently in someone's hand
   const inHands = new Set();
   HOST.players.forEach(p => p.hand.forEach(c => inHands.add(c)));
+
+  // All cards NOT in any hand go into the deck
   HOST.deck = shuffle(HOST.allCardIds.filter(id => !inHands.has(id)));
 
-  // Deal to each player up to HAND_SIZE
-  HOST.players.forEach(p => {
-    while (p.hand.length < HAND_SIZE && HOST.deck.length > 0) {
-      p.hand.push(HOST.deck.pop());
-    }
-    // If deck ran out, reshuffle all unused cards (not in any hand) and continue
-    if (p.hand.length < HAND_SIZE) {
-      const stillInHands = new Set();
-      HOST.players.forEach(pl => pl.hand.forEach(c => stillInHands.add(c)));
-      HOST.deck = shuffle(HOST.allCardIds.filter(id => !stillInHands.has(id)));
-      while (p.hand.length < HAND_SIZE && HOST.deck.length > 0) {
+  // Deal one card at a time in round-robin to be fair
+  let dealing = true;
+  while (dealing) {
+    dealing = false;
+    for (const p of HOST.players) {
+      if (p.hand.length < HAND_SIZE && HOST.deck.length > 0) {
         p.hand.push(HOST.deck.pop());
+        dealing = true;
       }
     }
-  });
+  }
 }
 
 function hostStartRound() {
@@ -1840,15 +1845,21 @@ function renderResults(body, state) {
 // SERVER API — SHARED IMAGE STORAGE
 // ============================================================
 let imageManifest = { defaultImages: [], customImages: [] };
+let serverAvailable = false;
 
 async function initImages() {
   try {
     const res = await fetch('/api/images');
-    imageManifest = await res.json();
-    IMAGE_FILES = [...imageManifest.defaultImages, ...imageManifest.customImages];
+    if (!res.ok) throw new Error('not ok');
+    const data = await res.json();
+    if (!data.defaultImages) throw new Error('bad response');
+    imageManifest = data;
+    IMAGE_FILES = [...data.defaultImages, ...data.customImages];
+    serverAvailable = true;
   } catch {
     IMAGE_FILES = [...DEFAULT_IMAGES];
     imageManifest = { defaultImages: [...DEFAULT_IMAGES], customImages: [] };
+    serverAvailable = false;
   }
 }
 
@@ -2055,8 +2066,32 @@ function closeCropModal() {
 // ============================================================
 let adminAuthed = false;
 
-function openAdmin() {
+async function openAdmin() {
   document.getElementById('admin-overlay').classList.add('open');
+  // Re-check server availability
+  try {
+    const res = await fetch('/api/images');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (!data.defaultImages) throw new Error();
+    serverAvailable = true;
+  } catch {
+    serverAvailable = false;
+  }
+  if (!serverAvailable) {
+    document.getElementById('admin-body').innerHTML = `
+      <div class="admin-password-form">
+        <p style="color:var(--danger);font-size:15px;font-weight:600;margin-bottom:12px;">Сервер не запущен!</p>
+        <p class="text-dim text-small" style="max-width:340px;text-align:center;line-height:1.6;">
+          Для управления картинками нужен сервер.<br><br>
+          Откройте терминал в папке проекта и выполните:<br>
+          <code style="background:var(--bg-deep);padding:6px 12px;border-radius:6px;display:inline-block;margin-top:8px;color:var(--gold);font-size:14px;">npm start</code><br><br>
+          Затем откройте <code style="color:var(--accent-blue);">http://localhost:3000</code>
+        </p>
+      </div>
+    `;
+    return;
+  }
   if (adminAuthed) {
     renderAdminGallery();
   } else {
