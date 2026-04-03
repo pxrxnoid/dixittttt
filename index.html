@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Reverie — A Game of Dreams</title>
+<title>Reverie — Игра ассоциаций</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 /* ============================================================
    RESET & BASE
@@ -63,7 +64,7 @@ input {
 }
 
 /* ============================================================
-   APP CONTAINER
+   APP CONTAINER & SCREENS
    ============================================================ */
 #app {
   width: 100%; height: 100%;
@@ -83,6 +84,7 @@ input {
   pointer-events: none;
   transition: opacity 0.5s ease;
   overflow-y: auto;
+  background: radial-gradient(ellipse at 50% 40%, #1a2340 0%, var(--bg-deep) 70%);
 }
 .screen.active {
   opacity: 1;
@@ -90,7 +92,7 @@ input {
 }
 
 /* ============================================================
-   SHARED UI COMPONENTS
+   SHARED UI
    ============================================================ */
 .btn {
   background: linear-gradient(135deg, var(--gold), var(--gold-dim));
@@ -104,25 +106,14 @@ input {
   box-shadow: 0 4px 20px var(--gold-glow);
 }
 .btn:active { transform: scale(0.96); }
-.btn:disabled {
-  opacity: 0.4;
-  pointer-events: none;
-}
+.btn:disabled { opacity: 0.4; pointer-events: none; }
 .btn--secondary {
   background: var(--bg-surface);
   color: var(--text);
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   border: 1px solid var(--text-muted);
 }
-.btn--small {
-  font-size: 14px;
-  padding: 10px 24px;
-}
-.btn--danger {
-  background: linear-gradient(135deg, var(--danger), #c0392b);
-  color: white;
-  box-shadow: 0 4px 20px rgba(248,81,73,0.3);
-}
+.btn--small { font-size: 14px; padding: 10px 24px; }
 
 .phase-label {
   font-size: 12px;
@@ -145,12 +136,33 @@ input {
   word-break: break-word;
 }
 
+.input-field {
+  background: var(--bg-surface);
+  border: 1px solid var(--text-muted);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--text);
+  font-size: 15px;
+  transition: border-color var(--transition);
+  width: 100%;
+  max-width: 300px;
+}
+.input-field:focus { border-color: var(--gold); }
+
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.gap-20 { gap: 20px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-16 { margin-bottom: 16px; }
+.mt-12 { margin-top: 12px; }
+.text-center { text-align: center; }
+.text-dim { color: var(--text-dim); }
+.text-small { font-size: 13px; }
+.text-gold { color: var(--gold); }
+
 /* ============================================================
    TITLE SCREEN
    ============================================================ */
-#title-screen {
-  background: radial-gradient(ellipse at 50% 30%, #1a2340 0%, var(--bg-deep) 70%);
-}
 .title-logo {
   font-family: 'Playfair Display', serif;
   font-size: 64px;
@@ -187,95 +199,244 @@ input {
   90% { opacity: 0.6; }
   100% { opacity: 0; transform: translateY(-100vh) scale(1); }
 }
-
-/* ============================================================
-   SETUP SCREEN
-   ============================================================ */
-#setup-screen {
-  background: radial-gradient(ellipse at 50% 60%, #1a2340 0%, var(--bg-deep) 70%);
-  gap: 16px;
-}
-.setup-title { font-size: 28px; color: var(--gold); margin-bottom: 8px; }
-.setup-subtitle { color: var(--text-dim); font-size: 14px; margin-bottom: 16px; }
-.player-inputs {
+.title-buttons {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: 100%;
-  max-width: 340px;
-}
-.player-input-row {
-  display: flex;
+  gap: 14px;
   align-items: center;
-  gap: 8px;
 }
-.player-input-row input {
-  flex: 1;
+
+/* ============================================================
+   LOBBY SCREEN
+   ============================================================ */
+.room-code-box {
   background: var(--bg-surface);
-  border: 1px solid var(--text-muted);
-  border-radius: 8px;
-  padding: 12px 16px;
-  color: var(--text);
-  font-size: 15px;
+  border: 2px dashed var(--gold-dim);
+  border-radius: 16px;
+  padding: 16px 32px;
+  text-align: center;
+  cursor: pointer;
   transition: border-color var(--transition);
+  position: relative;
 }
-.player-input-row input:focus {
-  border-color: var(--gold);
-}
-.player-input-row .remove-player {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  background: var(--bg-card);
+.room-code-box:active { border-color: var(--gold); }
+.room-code-label {
+  font-size: 12px;
   color: var(--text-dim);
-  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.room-code {
+  font-family: 'Playfair Display', serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 8px;
+}
+.room-code-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.copied-toast {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--success);
+  color: var(--bg-deep);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.copied-toast.show { opacity: 1; }
+
+.player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 300px;
+}
+.player-list-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: color var(--transition), background var(--transition);
-  border: 1px solid transparent;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-surface);
+  border-radius: 10px;
+  font-size: 15px;
+}
+.player-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--success);
   flex-shrink: 0;
 }
-.player-input-row .remove-player:hover {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-.setup-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-/* ============================================================
-   HANDOFF SCREEN
-   ============================================================ */
-#handoff-screen {
-  background: radial-gradient(ellipse at 50% 40%, #1a2340 0%, var(--bg-deep) 70%);
-  gap: 20px;
-  text-align: center;
-}
-.handoff-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 36px;
+.player-list-item .host-badge {
+  font-size: 10px;
   color: var(--gold);
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
-.handoff-role {
+
+/* Score switch */
+.score-switch {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--text-muted);
+}
+.score-option {
+  padding: 10px 20px;
+  background: var(--bg-surface);
   color: var(--text-dim);
-  font-size: 16px;
-  max-width: 300px;
-  line-height: 1.5;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  border: none;
+}
+.score-option.active {
+  background: var(--gold);
+  color: var(--bg-deep);
 }
 
 /* ============================================================
-   STORYTELLER SCREEN
+   GAME SCREEN
    ============================================================ */
-#storyteller-screen {
-  background: radial-gradient(ellipse at 50% 80%, #1a2340 0%, var(--bg-deep) 70%);
+#game-screen {
   justify-content: flex-start;
-  padding-top: 20px;
-  gap: 12px;
+  padding-top: 0;
+  padding-bottom: 16px;
 }
+
+.game-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.3);
+  flex-shrink: 0;
+}
+.game-header .round-info {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.game-header .round-info b {
+  color: var(--gold);
+  font-weight: 600;
+}
+.game-header .my-name {
+  font-size: 13px;
+  color: var(--accent-purple);
+  font-weight: 500;
+}
+
+/* Sidebar scoreboard (floating) */
+.scores-toggle {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 100;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--text-muted);
+  color: var(--gold);
+  font-size: 18px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.scores-toggle.visible { display: flex; }
+
+.scores-panel {
+  position: fixed;
+  top: 0; right: 0;
+  width: 260px;
+  height: 100%;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--text-muted);
+  z-index: 99;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+.scores-panel.open { transform: translateX(0); }
+.scores-panel-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.scores-panel-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 22px;
+  cursor: pointer;
+}
+.sp-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.sp-entry.storyteller { border-left: 3px solid var(--gold); }
+.sp-entry .sp-name { font-weight: 500; }
+.sp-entry .sp-pts { color: var(--accent-blue); font-weight: 600; }
+.sp-entry.storyteller .sp-name { color: var(--gold); }
+
+/* Game body */
+.game-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+/* Waiting state */
+.waiting-msg {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  color: var(--text-dim);
+  text-align: center;
+  max-width: 320px;
+}
+.waiting-progress {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+.waiting-dots {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Clue input */
 .clue-input-area {
   display: flex;
   gap: 8px;
@@ -285,176 +446,9 @@ input {
 }
 .clue-input-area input {
   flex: 1;
-  background: var(--bg-surface);
-  border: 1px solid var(--text-muted);
-  border-radius: 8px;
-  padding: 12px 16px;
-  color: var(--text);
-  font-size: 15px;
-  transition: border-color var(--transition);
-}
-.clue-input-area input:focus { border-color: var(--gold); }
-
-/* ============================================================
-   CONTRIBUTE SCREEN
-   ============================================================ */
-#contribute-screen {
-  background: radial-gradient(ellipse at 50% 80%, #1a2340 0%, var(--bg-deep) 70%);
-  justify-content: flex-start;
-  padding-top: 20px;
-  gap: 12px;
 }
 
-/* ============================================================
-   VOTING SCREEN
-   ============================================================ */
-#voting-screen {
-  background: radial-gradient(ellipse at 50% 50%, #1a2340 0%, var(--bg-deep) 70%);
-  justify-content: flex-start;
-  padding-top: 20px;
-  gap: 12px;
-}
-.voter-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 22px;
-  color: var(--accent-purple);
-}
-
-/* ============================================================
-   RESULTS SCREEN
-   ============================================================ */
-#results-screen {
-  background: radial-gradient(ellipse at 50% 30%, #1a2340 0%, var(--bg-deep) 70%);
-  justify-content: flex-start;
-  padding-top: 20px;
-  gap: 16px;
-  overflow-y: auto;
-}
-.results-cards-area {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  justify-content: center;
-  max-width: 600px;
-}
-.result-card-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-.result-card-wrapper .owner-label {
-  font-size: 11px;
-  color: var(--text-dim);
-  text-align: center;
-}
-.result-card-wrapper .owner-label.storyteller {
-  color: var(--gold);
-  font-weight: 600;
-}
-.result-card-wrapper .votes-list {
-  font-size: 11px;
-  color: var(--accent-blue);
-  text-align: center;
-}
-.result-card-wrapper .card-container.storyteller-card {
-  box-shadow: 0 0 20px var(--gold-glow), 0 0 40px var(--gold-glow);
-  border: 2px solid var(--gold);
-}
-.score-changes {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  max-width: 360px;
-}
-.score-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-  background: var(--bg-surface);
-  border-radius: 8px;
-}
-.score-row .name { font-weight: 500; }
-.score-row .points {
-  color: var(--success);
-  font-weight: 600;
-}
-.score-row .points.zero { color: var(--text-muted); }
-
-/* ============================================================
-   SCOREBOARD SCREEN
-   ============================================================ */
-#scoreboard-screen {
-  background: radial-gradient(ellipse at 50% 30%, #1a2340 0%, var(--bg-deep) 70%);
-  gap: 20px;
-}
-.scoreboard-title { font-size: 28px; color: var(--gold); }
-.scoreboard-table {
-  width: 100%;
-  max-width: 400px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.scoreboard-entry {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--bg-surface);
-  border-radius: 10px;
-  transition: transform var(--transition);
-}
-.scoreboard-entry.leader {
-  background: linear-gradient(135deg, rgba(232,168,62,0.15), rgba(232,168,62,0.05));
-  border: 1px solid var(--gold-dim);
-}
-.scoreboard-rank {
-  font-family: 'Playfair Display', serif;
-  font-size: 20px;
-  color: var(--text-muted);
-  min-width: 28px;
-  text-align: center;
-}
-.scoreboard-entry.leader .scoreboard-rank { color: var(--gold); }
-.scoreboard-name { flex: 1; font-weight: 500; font-size: 16px; }
-.scoreboard-points {
-  font-weight: 600;
-  font-size: 18px;
-  color: var(--accent-blue);
-}
-.scoreboard-entry.leader .scoreboard-points { color: var(--gold); }
-.scoreboard-bar {
-  height: 4px;
-  background: var(--text-muted);
-  border-radius: 2px;
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-}
-.scoreboard-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
-  transition: width 0.6s ease;
-}
-.scoreboard-entry.leader .scoreboard-bar-fill {
-  background: linear-gradient(90deg, var(--gold), var(--amber));
-}
-
-/* Game Over */
-.game-over-banner {
-  font-family: 'Playfair Display', serif;
-  font-size: 20px;
-  color: var(--amber);
-  text-align: center;
-}
-
-/* ============================================================
-   CARD STYLES
-   ============================================================ */
+/* Cards */
 .hand-area {
   display: flex;
   gap: 10px;
@@ -487,21 +481,19 @@ input {
   box-shadow: 0 0 16px var(--gold-glow), 0 8px 24px rgba(0,0,0,0.4);
   transform: translateY(-6px);
 }
-.card-container.disabled {
-  opacity: 0.35;
-  pointer-events: none;
+.card-container.disabled { opacity: 0.35; pointer-events: none; }
+.card-container.storyteller-card {
+  box-shadow: 0 0 20px var(--gold-glow), 0 0 40px var(--gold-glow);
+  border: 2px solid var(--gold);
 }
 .card-container img {
-  width: 100%;
-  height: 100%;
+  width: 100%; height: 100%;
   display: block;
   object-fit: cover;
 }
-
 .card-number {
   position: absolute;
-  bottom: 4px;
-  right: 6px;
+  bottom: 4px; right: 6px;
   font-size: 10px;
   color: rgba(255,255,255,0.3);
   font-weight: 600;
@@ -517,23 +509,81 @@ input {
   max-width: 560px;
 }
 .voting-grid .card-container {
-  width: 110px;
-  min-width: 110px;
-  height: 154px;
+  width: 110px; min-width: 110px; height: 154px;
 }
-.voting-grid .vote-label {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+
+/* Results */
+.results-cards-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  max-width: 600px;
+}
+.result-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.result-card-wrapper .owner-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.result-card-wrapper .owner-label.storyteller {
+  color: var(--gold);
+  font-weight: 600;
+}
+.result-card-wrapper .votes-list {
+  font-size: 11px;
+  color: var(--accent-blue);
+  text-align: center;
+}
+.score-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 360px;
+}
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--bg-surface);
+  border-radius: 8px;
+}
+.score-row .name { font-weight: 500; }
+.score-row .points { color: var(--success); font-weight: 600; }
+.score-row .points.zero { color: var(--text-muted); }
+
+/* Game over overlay */
+.game-over-banner {
   font-family: 'Playfair Display', serif;
-  font-size: 28px;
-  font-weight: 700;
-  color: white;
-  text-shadow: 0 2px 12px rgba(0,0,0,0.8);
-  pointer-events: none;
-  z-index: 2;
+  font-size: 24px;
+  color: var(--amber);
+  text-align: center;
+  margin-bottom: 8px;
 }
+
+/* Error / status bar */
+.status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  background: var(--danger);
+  color: white;
+  text-align: center;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 200;
+  transform: translateY(100%);
+  transition: transform 0.3s;
+}
+.status-bar.show { transform: translateY(0); }
 
 /* ============================================================
    RESPONSIVE
@@ -541,32 +591,16 @@ input {
 @media (max-width: 480px) {
   .title-logo { font-size: 44px; }
   .title-sub { font-size: 15px; }
-  :root {
-    --card-w: 95px;
-    --card-h: 133px;
-  }
-  .voting-grid .card-container {
-    width: 90px;
-    min-width: 90px;
-    height: 126px;
-  }
+  .room-code { font-size: 36px; }
+  :root { --card-w: 95px; --card-h: 133px; }
+  .voting-grid .card-container { width: 90px; min-width: 90px; height: 126px; }
   .clue-display { font-size: 20px; }
-  .handoff-name { font-size: 28px; }
 }
-
 @media (max-width: 360px) {
-  :root {
-    --card-w: 80px;
-    --card-h: 112px;
-  }
-  .voting-grid .card-container {
-    width: 78px;
-    min-width: 78px;
-    height: 109px;
-  }
+  :root { --card-w: 80px; --card-h: 112px; }
+  .voting-grid .card-container { width: 78px; min-width: 78px; height: 109px; }
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
@@ -575,104 +609,130 @@ input {
 <body>
 
 <div id="app">
-  <!-- TITLE SCREEN -->
+  <!-- TITLE -->
   <div id="title-screen" class="screen active">
     <div class="title-particles" id="title-particles"></div>
     <div class="title-logo">Reverie</div>
-    <div class="title-sub">a game of dreams &amp; whispers</div>
-    <button class="btn" onclick="showSetup()">New Game</button>
-  </div>
-
-  <!-- SETUP SCREEN -->
-  <div id="setup-screen" class="screen">
-    <h2 class="setup-title">Gather the Dreamers</h2>
-    <p class="setup-subtitle">3 – 6 players</p>
-    <div class="player-inputs" id="player-inputs"></div>
-    <div class="setup-actions">
-      <button class="btn--secondary btn btn--small" onclick="addPlayerInput()">+ Add Player</button>
-      <button class="btn" id="start-btn" onclick="startGame()">Begin</button>
+    <div class="title-sub">игра ассоциаций</div>
+    <div class="title-buttons">
+      <button class="btn" onclick="showCreate()">Создать игру</button>
+      <button class="btn btn--secondary" onclick="showJoin()">Присоединиться</button>
     </div>
   </div>
 
-  <!-- HANDOFF SCREEN -->
-  <div id="handoff-screen" class="screen">
-    <div class="phase-label" id="handoff-phase"></div>
-    <div class="handoff-name" id="handoff-name"></div>
-    <div class="handoff-role" id="handoff-role"></div>
-    <button class="btn" id="handoff-btn" onclick="handoffContinue()">Ready</button>
-  </div>
-
-  <!-- STORYTELLER SCREEN -->
-  <div id="storyteller-screen" class="screen">
-    <div class="phase-label">Storyteller</div>
-    <p style="color:var(--text-dim);font-size:14px;text-align:center;max-width:340px;">Choose a card from your hand, then give a clue — a word, phrase, or feeling that connects to it.</p>
-    <div class="hand-area" id="storyteller-hand"></div>
-    <div class="clue-input-area">
-      <input type="text" id="clue-input" placeholder="Enter your clue…" maxlength="100" autocomplete="off">
-      <button class="btn btn--small" id="submit-clue-btn" onclick="submitClue()" disabled>Go</button>
+  <!-- CREATE GAME -->
+  <div id="create-screen" class="screen">
+    <h2 style="font-size:24px;color:var(--gold);margin-bottom:16px;">Создать игру</h2>
+    <input class="input-field mb-16" id="create-name" type="text" placeholder="Твой никнейм" maxlength="20" autocomplete="off">
+    <p class="text-dim text-small mb-8">Играть до:</p>
+    <div class="score-switch mb-16">
+      <button class="score-option active" data-score="32" onclick="pickScore(this)">32</button>
+      <button class="score-option" data-score="54" onclick="pickScore(this)">54</button>
+      <button class="score-option" data-score="67" onclick="pickScore(this)">67</button>
     </div>
+    <button class="btn" id="create-btn" onclick="doCreate()">Создать</button>
+    <button class="btn btn--secondary btn--small mt-12" onclick="showTitle()">Назад</button>
+    <p id="create-status" class="text-dim text-small mt-12" style="display:none;"></p>
   </div>
 
-  <!-- CONTRIBUTE SCREEN -->
-  <div id="contribute-screen" class="screen">
-    <div class="phase-label">Choose a Bluff</div>
-    <div class="clue-display" id="contribute-clue"></div>
-    <p style="color:var(--text-dim);font-size:13px;text-align:center;max-width:320px;">Pick a card from your hand that could also match this clue.</p>
-    <div class="hand-area" id="contribute-hand"></div>
-    <button class="btn btn--small" id="submit-contribute-btn" onclick="submitContribute()" disabled>Submit Card</button>
+  <!-- JOIN GAME -->
+  <div id="join-screen" class="screen">
+    <h2 style="font-size:24px;color:var(--gold);margin-bottom:16px;">Присоединиться</h2>
+    <input class="input-field mb-16" id="join-name" type="text" placeholder="Твой никнейм" maxlength="20" autocomplete="off">
+    <input class="input-field mb-16" id="join-code" type="text" placeholder="Код комнаты" maxlength="4" autocomplete="off" style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:20px;">
+    <button class="btn" id="join-btn" onclick="doJoin()">Войти</button>
+    <button class="btn btn--secondary btn--small mt-12" onclick="showTitle()">Назад</button>
+    <p id="join-status" class="text-dim text-small mt-12" style="display:none;"></p>
   </div>
 
-  <!-- VOTING SCREEN -->
-  <div id="voting-screen" class="screen">
-    <div class="phase-label">Vote</div>
-    <div class="voter-name" id="voter-name"></div>
-    <div class="clue-display" id="voting-clue"></div>
-    <p style="color:var(--text-dim);font-size:13px;text-align:center;">Which card belongs to the storyteller?</p>
-    <div class="voting-grid" id="voting-grid"></div>
-    <button class="btn btn--small" id="submit-vote-btn" onclick="submitVote()" disabled>Cast Vote</button>
+  <!-- LOBBY -->
+  <div id="lobby-screen" class="screen">
+    <div class="room-code-box" id="room-code-box" onclick="copyCode()">
+      <div class="room-code-label">Код комнаты</div>
+      <div class="room-code" id="lobby-code"></div>
+      <div class="room-code-hint">нажми чтобы скопировать</div>
+      <div class="copied-toast" id="copied-toast">Скопировано!</div>
+    </div>
+    <p class="text-dim text-small mt-12 mb-8">Игроки:</p>
+    <div class="player-list" id="lobby-players"></div>
+    <p class="text-dim text-small mt-12" id="lobby-score-label"></p>
+    <button class="btn mt-12" id="lobby-start-btn" onclick="doStartGame()" style="display:none;">Начать игру</button>
+    <p class="text-dim text-small mt-12" id="lobby-wait" style="display:none;">Ожидание хоста...</p>
   </div>
 
-  <!-- RESULTS SCREEN -->
-  <div id="results-screen" class="screen">
-    <div class="phase-label">Reveal</div>
-    <div class="clue-display" id="results-clue"></div>
-    <div class="results-cards-area" id="results-cards"></div>
-    <div class="score-changes" id="score-changes"></div>
-    <button class="btn" onclick="showScoreboard()">Scoreboard</button>
-  </div>
-
-  <!-- SCOREBOARD SCREEN -->
-  <div id="scoreboard-screen" class="screen">
-    <h2 class="scoreboard-title" id="scoreboard-title">Scoreboard</h2>
-    <div class="game-over-banner" id="game-over-banner" style="display:none;"></div>
-    <div class="scoreboard-table" id="scoreboard-table"></div>
-    <button class="btn" id="next-round-btn" onclick="nextRound()">Next Round</button>
-    <button class="btn btn--secondary btn--small" id="new-game-btn" onclick="showTitle()" style="display:none;">New Game</button>
+  <!-- GAME -->
+  <div id="game-screen" class="screen">
+    <div class="game-header">
+      <span class="round-info">Раунд <b id="gh-round">1</b></span>
+      <span class="my-name" id="gh-name"></span>
+    </div>
+    <div class="game-body" id="game-body"></div>
   </div>
 </div>
 
+<!-- Floating scores toggle -->
+<button class="scores-toggle" id="scores-toggle" onclick="toggleScores()">★</button>
+<div class="scores-panel" id="scores-panel">
+  <button class="scores-panel-close" onclick="toggleScores()">&times;</button>
+  <div class="scores-panel-title">Очки</div>
+  <div id="scores-list"></div>
+</div>
+
+<!-- Status bar -->
+<div class="status-bar" id="status-bar"></div>
+
 <script>
 // ============================================================
-// GAME STATE
+// CONSTANTS
 // ============================================================
-const G = {
-  players: [],        // [{name, score, hand:[cardId,...]}]
-  deck: [],           // [cardId, ...]
-  cards: {},          // {id: {id, render()}}
+const IMAGE_FILES = [
+  '1E8B0269-6F4A-455E-8E32-D92A80529A71.JPG',
+  '4A06414C-606A-4326-B9AF-F92E56E52264 (1).JPG',
+  '85D134AB-4E4B-47BE-AB7F-36E0E29F8533.PNG',
+  'B21DBD94-BA39-463A-A9CB-2D0B5E08CACB.JPG',
+  'DF91EC43-7970-485D-B1C5-4FFDF61A77A2 (1).PNG',
+  'IMG_6773.JPG',
+  'IMG_6944.JPG',
+  'IMG_7085.JPG'
+];
+const HAND_SIZE = 2;
+const PEER_PREFIX = 'reverie-game-';
+
+// ============================================================
+// STATE
+// ============================================================
+
+/* Network state */
+const NET = {
+  peer: null,
+  isHost: false,
+  roomCode: '',
+  myName: '',
+  myIdx: -1,
+  hostConn: null,       // client: connection to host
+  conns: [],            // host: [{conn, playerIdx}]
+};
+
+/* Host-authoritative game state */
+const HOST = {
+  players: [],          // [{name, score, hand:[], conn:null}]
+  allCardIds: [],
+  deck: [],
+  phase: 'lobby',
   round: 0,
+  winScore: 32,
   storytellerIdx: 0,
   storytellerCard: null,
   clue: '',
-  contributions: [],  // [{playerIdx, cardId}]
-  votes: [],          // [{voterIdx, cardId}]
-  shuffledPool: [],   // [{cardId, ownerIdx}] — shuffled for voting
-  phase: 'title',
-  gameOver: false,
-  currentContributor: 0,
-  currentVoter: 0,
-  selectedCard: null,
-  WIN_SCORE: 30
+  contributions: [],    // [{playerIdx, cardId}]
+  votes: [],            // [{voterIdx, cardId}]
+  shuffledPool: [],     // [{cardId, ownerIdx}]
+  roundScores: {},
 };
+
+/* Local client state */
+let localState = null;  // last state received from host
+let selectedCard = null;
 
 // ============================================================
 // SCREEN MANAGEMENT
@@ -680,20 +740,38 @@ const G = {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  // Show/hide scores toggle
+  const toggle = document.getElementById('scores-toggle');
+  toggle.classList.toggle('visible', id === 'game-screen');
+  if (id !== 'game-screen') {
+    document.getElementById('scores-panel').classList.remove('open');
+  }
 }
 
 function showTitle() {
-  G.phase = 'title';
+  if (NET.peer) { NET.peer.destroy(); NET.peer = null; }
+  NET.hostConn = null;
+  NET.conns = [];
   showScreen('title-screen');
 }
 
+function showCreate() { showScreen('create-screen'); }
+function showJoin() { showScreen('join-screen'); }
+
+function showStatus(msg) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.classList.add('show');
+  setTimeout(() => bar.classList.remove('show'), 3000);
+}
+
 // ============================================================
-// TITLE SCREEN PARTICLES
+// TITLE PARTICLES
 // ============================================================
-(function initParticles() {
+(function() {
   const c = document.getElementById('title-particles');
   const colors = ['#e8a83e', '#f0c060', '#bc8cff', '#58a6ff', '#f78166'];
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 25; i++) {
     const p = document.createElement('div');
     p.className = 'title-particle';
     const size = 3 + Math.random() * 6;
@@ -709,83 +787,46 @@ function showTitle() {
 })();
 
 // ============================================================
-// SETUP SCREEN
+// SCORE SWITCH
 // ============================================================
-function showSetup() {
-  showScreen('setup-screen');
-  const inputs = document.getElementById('player-inputs');
-  inputs.innerHTML = '';
-  // Start with 3 player inputs
-  for (let i = 0; i < 3; i++) addPlayerInput();
+function pickScore(el) {
+  document.querySelectorAll('.score-option').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
 }
-
-function addPlayerInput() {
-  const inputs = document.getElementById('player-inputs');
-  if (inputs.children.length >= 6) return;
-  const row = document.createElement('div');
-  row.className = 'player-input-row';
-  const num = inputs.children.length + 1;
-  row.innerHTML = `
-    <input type="text" placeholder="Player ${num}" maxlength="20" autocomplete="off">
-    <button class="remove-player" onclick="removePlayerInput(this)">&times;</button>
-  `;
-  inputs.appendChild(row);
-  updateSetupBtn();
+function getSelectedScore() {
+  const active = document.querySelector('.score-option.active');
+  return active ? parseInt(active.dataset.score) : 32;
 }
-
-function removePlayerInput(btn) {
-  const inputs = document.getElementById('player-inputs');
-  if (inputs.children.length <= 3) return;
-  btn.parentElement.remove();
-  updateSetupBtn();
-}
-
-function updateSetupBtn() {
-  const rows = document.querySelectorAll('#player-inputs .player-input-row input');
-  const names = [...rows].map(i => i.value.trim()).filter(Boolean);
-  document.getElementById('start-btn').disabled = names.length < 3;
-}
-document.addEventListener('input', e => {
-  if (e.target.closest('#player-inputs')) updateSetupBtn();
-});
 
 // ============================================================
-// CARD GENERATION — photo cards only
+// UTILITY
 // ============================================================
-
-const IMAGE_FILES = [
-  '1E8B0269-6F4A-455E-8E32-D92A80529A71.JPG',
-  '4A06414C-606A-4326-B9AF-F92E56E52264 (1).JPG',
-  '85D134AB-4E4B-47BE-AB7F-36E0E29F8533.PNG',
-  'B21DBD94-BA39-463A-A9CB-2D0B5E08CACB.JPG',
-  'DF91EC43-7970-485D-B1C5-4FFDF61A77A2 (1).PNG',
-  'IMG_6773.JPG',
-  'IMG_6944.JPG',
-  'IMG_7085.JPG'
-];
-
-const HAND_SIZE = 2; // With 8 photos, each player gets 2 cards
-
-function generateCards() {
-  G.cards = {};
-  const ids = [];
-  for (let i = 0; i < IMAGE_FILES.length; i++) {
-    const id = 'card_' + i;
-    G.cards[id] = { id, src: IMAGE_FILES[i] };
-    ids.push(id);
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
   }
-  return ids;
+  return a;
 }
 
-/* Create a card DOM element */
+function genRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let code = '';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
 function createCardElement(cardId, opts = {}) {
-  const card = G.cards[cardId];
   const div = document.createElement('div');
   div.className = 'card-container';
   if (opts.disabled) div.classList.add('disabled');
+  if (opts.storyteller) div.classList.add('storyteller-card');
   div.dataset.cardId = cardId;
   const img = document.createElement('img');
-  img.src = card.src;
+  // cardId is like "card_3" → index 3
+  const idx = parseInt(cardId.split('_')[1]);
+  img.src = IMAGE_FILES[idx];
   img.draggable = false;
   div.appendChild(img);
   if (opts.label) {
@@ -797,434 +838,751 @@ function createCardElement(cardId, opts = {}) {
   return div;
 }
 
-// ============================================================
-// START GAME
-// ============================================================
-function startGame() {
-  const rows = document.querySelectorAll('#player-inputs .player-input-row input');
-  const names = [...rows].map(i => i.value.trim()).filter(Boolean);
-  if (names.length < 3) return;
-
-  // Initialize players
-  G.players = names.map(name => ({ name, score: 0, hand: [] }));
-  G.round = 0;
-  G.storytellerIdx = 0;
-  G.gameOver = false;
-  G.allCardIds = generateCards();
-
-  // Shuffle and deal
-  G.deck = shuffle([...G.allCardIds]);
-  for (const player of G.players) {
-    player.hand = [];
-    for (let i = 0; i < HAND_SIZE; i++) {
-      if (G.deck.length > 0) player.hand.push(G.deck.pop());
-    }
-  }
-
-  startRound();
+function copyCode() {
+  navigator.clipboard.writeText(NET.roomCode).catch(() => {});
+  const toast = document.getElementById('copied-toast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1500);
 }
 
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+function toggleScores() {
+  document.getElementById('scores-panel').classList.toggle('open');
 }
 
 // ============================================================
-// ROUND FLOW
+// PEERJS — CREATE ROOM (HOST)
 // ============================================================
-function startRound() {
-  G.round++;
-  G.storytellerCard = null;
-  G.clue = '';
-  G.contributions = [];
-  G.votes = [];
-  G.shuffledPool = [];
-  G.selectedCard = null;
+function doCreate() {
+  const name = document.getElementById('create-name').value.trim();
+  if (!name) return;
+  const status = document.getElementById('create-status');
+  status.style.display = 'block';
+  status.textContent = 'Подключение...';
+  document.getElementById('create-btn').disabled = true;
 
-  // Cards are recycled each round, so no deck exhaustion check needed
+  NET.myName = name;
+  NET.isHost = true;
+  NET.roomCode = genRoomCode();
+  NET.myIdx = 0;
 
-  // Show handoff for storyteller
-  showHandoff(
-    G.players[G.storytellerIdx].name,
-    'You are the Storyteller',
-    'Look at your hand and choose a card. Then give the others a clue — a word, phrase, or feeling.',
-    'storyteller',
-    () => showStoryteller()
-  );
-}
+  HOST.winScore = getSelectedScore();
+  HOST.players = [{ name, score: 0, hand: [], conn: null }];
+  HOST.phase = 'lobby';
 
-// ============================================================
-// HANDOFF
-// ============================================================
-let handoffCallback = null;
+  const peerId = PEER_PREFIX + NET.roomCode;
+  NET.peer = new Peer(peerId, { debug: 0 });
 
-function showHandoff(name, phaseText, roleText, phase, callback) {
-  document.getElementById('handoff-phase').textContent = phaseText;
-  document.getElementById('handoff-name').textContent = name;
-  document.getElementById('handoff-role').textContent = roleText;
-  handoffCallback = callback;
-  showScreen('handoff-screen');
-}
-
-function handoffContinue() {
-  if (handoffCallback) handoffCallback();
-}
-
-// ============================================================
-// STORYTELLER PHASE
-// ============================================================
-function showStoryteller() {
-  G.selectedCard = null;
-  const hand = document.getElementById('storyteller-hand');
-  hand.innerHTML = '';
-  const player = G.players[G.storytellerIdx];
-  player.hand.forEach((cardId) => {
-    const el = createCardElement(cardId);
-    el.addEventListener('click', () => selectCard(el, 'storyteller'));
-    hand.appendChild(el);
+  NET.peer.on('open', () => {
+    status.style.display = 'none';
+    document.getElementById('create-btn').disabled = false;
+    showLobby();
   });
-  document.getElementById('clue-input').value = '';
-  document.getElementById('submit-clue-btn').disabled = true;
-  showScreen('storyteller-screen');
+
+  NET.peer.on('error', (err) => {
+    if (err.type === 'unavailable-id') {
+      // Room code collision — retry
+      NET.roomCode = genRoomCode();
+      NET.peer.destroy();
+      doCreate();
+      return;
+    }
+    status.textContent = 'Ошибка: ' + err.message;
+    document.getElementById('create-btn').disabled = false;
+  });
+
+  NET.peer.on('connection', (conn) => {
+    conn.on('open', () => {
+      conn.on('data', (data) => hostOnMessage(conn, data));
+    });
+    conn.on('close', () => hostOnDisconnect(conn));
+  });
 }
 
-function selectCard(el, context) {
-  const container = el.parentElement;
-  container.querySelectorAll('.card-container').forEach(c => c.classList.remove('selected'));
-  el.classList.add('selected');
-  G.selectedCard = el.dataset.cardId;
+// ============================================================
+// PEERJS — JOIN ROOM (CLIENT)
+// ============================================================
+function doJoin() {
+  const name = document.getElementById('join-name').value.trim();
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if (!name || code.length !== 4) return;
 
-  if (context === 'storyteller') {
-    updateClueBtn();
-  } else if (context === 'contribute') {
-    document.getElementById('submit-contribute-btn').disabled = false;
-  } else if (context === 'vote') {
-    document.getElementById('submit-vote-btn').disabled = false;
+  const status = document.getElementById('join-status');
+  status.style.display = 'block';
+  status.textContent = 'Подключение...';
+  document.getElementById('join-btn').disabled = true;
+
+  NET.myName = name;
+  NET.isHost = false;
+  NET.roomCode = code;
+
+  NET.peer = new Peer(undefined, { debug: 0 });
+
+  NET.peer.on('open', () => {
+    const conn = NET.peer.connect(PEER_PREFIX + code, { reliable: true });
+    NET.hostConn = conn;
+
+    conn.on('open', () => {
+      conn.send({ type: 'join', name });
+    });
+
+    conn.on('data', (data) => clientOnMessage(data));
+
+    conn.on('close', () => {
+      showStatus('Соединение с хостом потеряно');
+      showTitle();
+    });
+
+    conn.on('error', () => {
+      status.textContent = 'Не удалось подключиться';
+      document.getElementById('join-btn').disabled = false;
+    });
+
+    // Timeout
+    setTimeout(() => {
+      if (!conn.open) {
+        status.textContent = 'Комната не найдена';
+        document.getElementById('join-btn').disabled = false;
+        conn.close();
+      }
+    }, 8000);
+  });
+
+  NET.peer.on('error', (err) => {
+    status.textContent = 'Ошибка: ' + err.message;
+    document.getElementById('join-btn').disabled = false;
+  });
+}
+
+// ============================================================
+// LOBBY
+// ============================================================
+function showLobby() {
+  document.getElementById('lobby-code').textContent = NET.roomCode;
+  updateLobbyUI();
+  showScreen('lobby-screen');
+}
+
+function updateLobbyUI() {
+  const list = document.getElementById('lobby-players');
+  const players = NET.isHost ? HOST.players : (localState?.players || []);
+  list.innerHTML = '';
+  players.forEach((p, i) => {
+    const item = document.createElement('div');
+    item.className = 'player-list-item';
+    item.innerHTML = `
+      <span class="player-dot"></span>
+      <span>${p.name}</span>
+      ${i === 0 ? '<span class="host-badge">хост</span>' : ''}
+    `;
+    list.appendChild(item);
+  });
+
+  const scoreLabel = document.getElementById('lobby-score-label');
+  const ws = NET.isHost ? HOST.winScore : (localState?.winScore || 32);
+  scoreLabel.textContent = `Играем до ${ws} очков`;
+
+  const startBtn = document.getElementById('lobby-start-btn');
+  const waitMsg = document.getElementById('lobby-wait');
+  if (NET.isHost) {
+    startBtn.style.display = 'inline-block';
+    startBtn.disabled = players.length < 2;
+    waitMsg.style.display = 'none';
+  } else {
+    startBtn.style.display = 'none';
+    waitMsg.style.display = 'block';
+  }
+}
+
+// ============================================================
+// HOST — MESSAGE HANDLING
+// ============================================================
+function hostOnMessage(conn, data) {
+  if (data.type === 'join') {
+    if (HOST.phase !== 'lobby') {
+      conn.send({ type: 'error', msg: 'Игра уже началась' });
+      return;
+    }
+    if (HOST.players.length >= 4) {
+      conn.send({ type: 'error', msg: 'Комната заполнена (макс. 4)' });
+      return;
+    }
+    const idx = HOST.players.length;
+    HOST.players.push({ name: data.name, score: 0, hand: [], conn });
+    NET.conns.push({ conn, playerIdx: idx });
+    conn.send({ type: 'joined', playerIdx: idx });
+    hostBroadcastLobby();
+    updateLobbyUI();
+    return;
+  }
+
+  // Find player idx for this connection
+  const entry = NET.conns.find(c => c.conn === conn);
+  if (!entry) return;
+  const pidx = entry.playerIdx;
+
+  if (data.type === 'storyteller') {
+    hostOnStoryteller(pidx, data.cardId, data.clue);
+  } else if (data.type === 'contribute') {
+    hostOnContribute(pidx, data.cardId);
+  } else if (data.type === 'vote') {
+    hostOnVote(pidx, data.cardId);
+  }
+}
+
+function hostOnDisconnect(conn) {
+  const entry = NET.conns.find(c => c.conn === conn);
+  if (!entry) return;
+  const name = HOST.players[entry.playerIdx]?.name || '?';
+  showStatus(`${name} отключился`);
+  // In lobby: remove player
+  if (HOST.phase === 'lobby') {
+    HOST.players.splice(entry.playerIdx, 1);
+    NET.conns = NET.conns.filter(c => c.conn !== conn);
+    // Re-index
+    NET.conns.forEach((c, i) => c.playerIdx = i + 1);
+    hostBroadcastLobby();
+    updateLobbyUI();
+  }
+}
+
+function hostBroadcastLobby() {
+  const msg = {
+    type: 'lobby',
+    players: HOST.players.map(p => ({ name: p.name })),
+    winScore: HOST.winScore,
+    roomCode: NET.roomCode
+  };
+  NET.conns.forEach(c => c.conn.send(msg));
+}
+
+function hostBroadcast(msg) {
+  NET.conns.forEach(c => c.conn.send(msg));
+}
+
+/* Send personalized state to each player */
+function hostSendState() {
+  const base = {
+    type: 'state',
+    phase: HOST.phase,
+    players: HOST.players.map(p => ({ name: p.name, score: p.score })),
+    round: HOST.round,
+    winScore: HOST.winScore,
+    storytellerIdx: HOST.storytellerIdx,
+    clue: HOST.clue,
+    contributedCount: HOST.contributions.length - 1, // minus storyteller
+    totalNonSt: HOST.players.length - 1,
+    votedCount: HOST.votes.length,
+  };
+
+  HOST.players.forEach((p, idx) => {
+    const state = { ...base, myIdx: idx, hand: [...p.hand] };
+
+    // Vote phase: send shuffled pool
+    if (HOST.phase === 'vote' || HOST.phase === 'results') {
+      state.pool = HOST.shuffledPool.map(e => e.cardId);
+    }
+    if (HOST.phase === 'vote') {
+      state.ownCardId = HOST.contributions.find(c => c.playerIdx === idx)?.cardId;
+      state.alreadyVoted = HOST.votes.some(v => v.voterIdx === idx);
+    }
+    if (HOST.phase === 'results') {
+      state.results = {
+        storytellerCard: HOST.storytellerCard,
+        pool: HOST.shuffledPool.map(e => ({
+          cardId: e.cardId,
+          ownerIdx: e.ownerIdx,
+          ownerName: HOST.players[e.ownerIdx].name,
+          isStoryteller: e.cardId === HOST.storytellerCard,
+          voters: HOST.votes.filter(v => v.cardId === e.cardId).map(v => HOST.players[v.voterIdx].name)
+        })),
+        roundScores: HOST.roundScores,
+        isGameOver: HOST.players.some(p => p.score >= HOST.winScore)
+      };
+    }
+
+    if (idx === 0) {
+      // Host player — handle locally
+      localState = state;
+      renderGame(state);
+    } else {
+      p.conn?.send(state);
+    }
+  });
+}
+
+// ============================================================
+// HOST — GAME LOGIC
+// ============================================================
+function doStartGame() {
+  if (HOST.players.length < 2) return;
+
+  // Generate card IDs
+  HOST.allCardIds = IMAGE_FILES.map((_, i) => 'card_' + i);
+  HOST.round = 0;
+  HOST.storytellerIdx = 0;
+
+  // Reset scores
+  HOST.players.forEach(p => { p.score = 0; p.hand = []; });
+
+  // Deal initial hands
+  HOST.deck = shuffle([...HOST.allCardIds]);
+  HOST.players.forEach(p => {
+    for (let i = 0; i < HAND_SIZE; i++) {
+      if (HOST.deck.length > 0) p.hand.push(HOST.deck.pop());
+    }
+  });
+
+  hostStartRound();
+}
+
+function hostStartRound() {
+  HOST.round++;
+  HOST.storytellerCard = null;
+  HOST.clue = '';
+  HOST.contributions = [];
+  HOST.votes = [];
+  HOST.shuffledPool = [];
+  HOST.roundScores = {};
+  HOST.phase = 'storyteller';
+
+  hostSendState();
+}
+
+function hostOnStoryteller(pidx, cardId, clue) {
+  if (HOST.phase !== 'storyteller' || pidx !== HOST.storytellerIdx) return;
+  HOST.storytellerCard = cardId;
+  HOST.clue = clue;
+  // Remove card from hand
+  HOST.players[pidx].hand = HOST.players[pidx].hand.filter(c => c !== cardId);
+  HOST.contributions.push({ playerIdx: pidx, cardId });
+  HOST.phase = 'contribute';
+  hostSendState();
+
+  // If only 2 players, skip to vote if the other has auto-contributed (they won't — need to pick)
+  // Check if all non-storytellers have contributed
+  checkContributeDone();
+}
+
+function hostOnContribute(pidx, cardId) {
+  if (HOST.phase !== 'contribute') return;
+  if (pidx === HOST.storytellerIdx) return;
+  if (HOST.contributions.find(c => c.playerIdx === pidx)) return; // already contributed
+  HOST.players[pidx].hand = HOST.players[pidx].hand.filter(c => c !== cardId);
+  HOST.contributions.push({ playerIdx: pidx, cardId });
+  hostSendState(); // update progress
+  checkContributeDone();
+}
+
+function checkContributeDone() {
+  const needed = HOST.players.length; // storyteller + all others
+  if (HOST.contributions.length >= needed) {
+    HOST.shuffledPool = shuffle(HOST.contributions.map(c => ({ cardId: c.cardId, ownerIdx: c.playerIdx })));
+    HOST.phase = 'vote';
+    hostSendState();
+    checkVoteDone(); // in case storyteller auto-skips
+  }
+}
+
+function hostOnVote(pidx, cardId) {
+  if (HOST.phase !== 'vote') return;
+  if (pidx === HOST.storytellerIdx) return;
+  if (HOST.votes.find(v => v.voterIdx === pidx)) return;
+  HOST.votes.push({ voterIdx: pidx, cardId });
+  hostSendState();
+  checkVoteDone();
+}
+
+function checkVoteDone() {
+  const needed = HOST.players.length - 1; // all except storyteller
+  if (HOST.votes.length >= needed) {
+    calculateScores();
+    HOST.phase = 'results';
+    hostSendState();
+  }
+}
+
+function calculateScores() {
+  const scores = {};
+  HOST.players.forEach((_, i) => scores[i] = 0);
+
+  const stCard = HOST.storytellerCard;
+  const stIdx = HOST.storytellerIdx;
+  const nonSt = HOST.players.map((_, i) => i).filter(i => i !== stIdx);
+  const correctVoters = HOST.votes.filter(v => v.cardId === stCard);
+  const allFound = correctVoters.length === nonSt.length;
+  const noneFound = correctVoters.length === 0;
+
+  if (allFound || noneFound) {
+    nonSt.forEach(i => scores[i] += 2);
+  } else {
+    scores[stIdx] += 3;
+    correctVoters.forEach(v => scores[v.voterIdx] += 3);
+  }
+
+  // Bluff bonus
+  nonSt.forEach(ownerIdx => {
+    const ownerCard = HOST.contributions.find(c => c.playerIdx === ownerIdx)?.cardId;
+    if (!ownerCard) return;
+    const votesOn = HOST.votes.filter(v => v.cardId === ownerCard).length;
+    scores[ownerIdx] += votesOn;
+  });
+
+  // Apply
+  HOST.players.forEach((p, i) => p.score += scores[i]);
+  HOST.roundScores = scores;
+}
+
+function hostNextRound() {
+  // Check game over
+  if (HOST.players.some(p => p.score >= HOST.winScore)) {
+    // Game is over — results already show this
+    return;
+  }
+
+  // Rotate storyteller
+  HOST.storytellerIdx = (HOST.storytellerIdx + 1) % HOST.players.length;
+
+  // Recycle cards
+  const inHands = new Set();
+  HOST.players.forEach(p => p.hand.forEach(c => inHands.add(c)));
+  HOST.deck = shuffle(HOST.allCardIds.filter(id => !inHands.has(id)));
+
+  HOST.players.forEach(p => {
+    while (p.hand.length < HAND_SIZE && HOST.deck.length > 0) {
+      p.hand.push(HOST.deck.pop());
+    }
+  });
+
+  hostStartRound();
+}
+
+// ============================================================
+// CLIENT — MESSAGE HANDLING
+// ============================================================
+function clientOnMessage(data) {
+  if (data.type === 'joined') {
+    NET.myIdx = data.playerIdx;
+    return;
+  }
+  if (data.type === 'lobby') {
+    localState = data;
+    document.getElementById('lobby-code').textContent = data.roomCode;
+    document.getElementById('join-status').style.display = 'none';
+    document.getElementById('join-btn').disabled = false;
+    updateLobbyUI();
+    showScreen('lobby-screen');
+    return;
+  }
+  if (data.type === 'state') {
+    localState = data;
+    renderGame(data);
+    return;
+  }
+  if (data.type === 'error') {
+    showStatus(data.msg);
+    return;
+  }
+}
+
+function sendToHost(msg) {
+  if (NET.isHost) {
+    // Host player — handle locally
+    hostOnMessage(null, { ...msg, _fromHost: true });
+  } else if (NET.hostConn) {
+    NET.hostConn.send(msg);
+  }
+}
+
+// ============================================================
+// GAME RENDERING
+// ============================================================
+function renderGame(state) {
+  if (!state || state.type !== 'state') return;
+  showScreen('game-screen');
+
+  // Header
+  document.getElementById('gh-round').textContent = state.round;
+  document.getElementById('gh-name').textContent = state.players[state.myIdx]?.name || '';
+
+  // Scores panel
+  updateScoresPanel(state);
+
+  const body = document.getElementById('game-body');
+  body.innerHTML = '';
+
+  switch (state.phase) {
+    case 'storyteller':
+      renderStoryteller(body, state);
+      break;
+    case 'contribute':
+      renderContribute(body, state);
+      break;
+    case 'vote':
+      renderVote(body, state);
+      break;
+    case 'results':
+      renderResults(body, state);
+      break;
+  }
+}
+
+function updateScoresPanel(state) {
+  const list = document.getElementById('scores-list');
+  list.innerHTML = '';
+  const sorted = state.players.map((p, i) => ({ ...p, idx: i }))
+    .sort((a, b) => b.score - a.score);
+  sorted.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'sp-entry' + (p.idx === state.storytellerIdx ? ' storyteller' : '');
+    div.innerHTML = `
+      <span class="sp-name">${p.name}${p.idx === state.storytellerIdx ? ' ★' : ''}</span>
+      <span class="sp-pts">${p.score}</span>
+    `;
+    list.appendChild(div);
+  });
+}
+
+// --- STORYTELLER PHASE ---
+function renderStoryteller(body, state) {
+  const isSt = state.myIdx === state.storytellerIdx;
+  const stName = state.players[state.storytellerIdx].name;
+
+  if (isSt) {
+    body.innerHTML = `
+      <div class="phase-label">Ты — рассказчик</div>
+      <p class="text-dim text-small text-center" style="max-width:340px;">
+        Выбери карту из руки и придумай к ней ассоциацию — слово, фразу или чувство.
+      </p>
+      <div class="hand-area" id="st-hand"></div>
+      <div class="clue-input-area">
+        <input class="input-field" id="clue-input" type="text" placeholder="Твоя ассоциация…" maxlength="100" autocomplete="off">
+        <button class="btn btn--small" id="submit-clue-btn" onclick="doSubmitClue()" disabled>Ок</button>
+      </div>
+    `;
+    selectedCard = null;
+    const hand = document.getElementById('st-hand');
+    state.hand.forEach(cardId => {
+      const el = createCardElement(cardId);
+      el.addEventListener('click', () => {
+        hand.querySelectorAll('.card-container').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedCard = cardId;
+        updateClueBtn();
+      });
+      hand.appendChild(el);
+    });
+    document.getElementById('clue-input').addEventListener('input', updateClueBtn);
+  } else {
+    body.innerHTML = `
+      <div class="waiting-msg">${stName} придумывает ассоциацию<span class="waiting-dots">...</span></div>
+    `;
   }
 }
 
 function updateClueBtn() {
-  const hasCard = G.selectedCard !== null;
-  const hasClue = document.getElementById('clue-input').value.trim().length > 0;
-  document.getElementById('submit-clue-btn').disabled = !(hasCard && hasClue);
+  const btn = document.getElementById('submit-clue-btn');
+  if (!btn) return;
+  const clue = document.getElementById('clue-input')?.value.trim();
+  btn.disabled = !(selectedCard && clue);
 }
-document.addEventListener('input', e => {
-  if (e.target.id === 'clue-input') updateClueBtn();
-});
 
-function submitClue() {
-  if (!G.selectedCard) return;
+function doSubmitClue() {
   const clue = document.getElementById('clue-input').value.trim();
-  if (!clue) return;
-
-  G.storytellerCard = G.selectedCard;
-  G.clue = clue;
-
-  // Remove card from storyteller's hand
-  const player = G.players[G.storytellerIdx];
-  player.hand = player.hand.filter(c => c !== G.storytellerCard);
-
-  G.contributions.push({ playerIdx: G.storytellerIdx, cardId: G.storytellerCard });
-
-  // Start contribute phase
-  G.currentContributor = 0;
-  nextContributor();
+  if (!selectedCard || !clue) return;
+  if (NET.isHost) {
+    hostOnStoryteller(0, selectedCard, clue);
+  } else {
+    sendToHost({ type: 'storyteller', cardId: selectedCard, clue });
+  }
 }
 
-// ============================================================
-// CONTRIBUTE PHASE
-// ============================================================
-function nextContributor() {
-  // Find next non-storyteller player
-  while (G.currentContributor < G.players.length) {
-    if (G.currentContributor !== G.storytellerIdx) break;
-    G.currentContributor++;
-  }
-  if (G.currentContributor >= G.players.length) {
-    // All contributors done — move to voting
-    startVoting();
+// --- CONTRIBUTE PHASE ---
+function renderContribute(body, state) {
+  const isSt = state.myIdx === state.storytellerIdx;
+  const alreadyContributed = state.contributedCount >= state.totalNonSt;
+
+  if (isSt) {
+    body.innerHTML = `
+      <div class="phase-label">Ассоциация</div>
+      <div class="clue-display">"${state.clue}"</div>
+      <div class="waiting-msg">Игроки выбирают карты<span class="waiting-dots">...</span></div>
+      <div class="waiting-progress">${state.contributedCount} / ${state.totalNonSt}</div>
+    `;
     return;
   }
 
-  const player = G.players[G.currentContributor];
-  showHandoff(
-    player.name,
-    'Choose a Bluff',
-    `Read the clue and pick a card from your hand that could match it.`,
-    'contribute',
-    () => showContribute()
-  );
-}
+  // Check if already contributed
+  const myContrib = state.hand.length < HAND_SIZE; // crude check: hand shrinks after contributing
+  // Better: server sends explicit flag
+  if (state.hand.length < HAND_SIZE) {
+    body.innerHTML = `
+      <div class="phase-label">Ассоциация</div>
+      <div class="clue-display">"${state.clue}"</div>
+      <div class="waiting-msg">Ожидание остальных<span class="waiting-dots">...</span></div>
+      <div class="waiting-progress">${state.contributedCount} / ${state.totalNonSt}</div>
+    `;
+    return;
+  }
 
-function showContribute() {
-  G.selectedCard = null;
-  document.getElementById('contribute-clue').textContent = `"${G.clue}"`;
-  const hand = document.getElementById('contribute-hand');
-  hand.innerHTML = '';
-  const player = G.players[G.currentContributor];
-  player.hand.forEach(cardId => {
+  body.innerHTML = `
+    <div class="phase-label">Блеф</div>
+    <div class="clue-display">"${state.clue}"</div>
+    <p class="text-dim text-small text-center" style="max-width:320px;">
+      Выбери карту, которая тоже подходит под эту ассоциацию.
+    </p>
+    <div class="hand-area" id="ct-hand"></div>
+    <button class="btn btn--small" id="submit-ct-btn" onclick="doSubmitContribute()" disabled>Отправить</button>
+  `;
+  selectedCard = null;
+  const hand = document.getElementById('ct-hand');
+  state.hand.forEach(cardId => {
     const el = createCardElement(cardId);
-    el.addEventListener('click', () => selectCard(el, 'contribute'));
+    el.addEventListener('click', () => {
+      hand.querySelectorAll('.card-container').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedCard = cardId;
+      document.getElementById('submit-ct-btn').disabled = false;
+    });
     hand.appendChild(el);
   });
-  document.getElementById('submit-contribute-btn').disabled = true;
-  showScreen('contribute-screen');
 }
 
-function submitContribute() {
-  if (!G.selectedCard) return;
-
-  const playerIdx = G.currentContributor;
-  const cardId = G.selectedCard;
-
-  // Remove card from player's hand
-  G.players[playerIdx].hand = G.players[playerIdx].hand.filter(c => c !== cardId);
-  G.contributions.push({ playerIdx, cardId });
-
-  G.currentContributor++;
-  nextContributor();
-}
-
-// ============================================================
-// VOTING PHASE
-// ============================================================
-function startVoting() {
-  // Shuffle contributed cards
-  G.shuffledPool = shuffle([...G.contributions]);
-  G.currentVoter = 0;
-  nextVoter();
-}
-
-function nextVoter() {
-  // Find next non-storyteller player
-  while (G.currentVoter < G.players.length) {
-    if (G.currentVoter !== G.storytellerIdx) break;
-    G.currentVoter++;
+function doSubmitContribute() {
+  if (!selectedCard) return;
+  if (NET.isHost) {
+    hostOnContribute(0, selectedCard);
+  } else {
+    sendToHost({ type: 'contribute', cardId: selectedCard });
   }
-  if (G.currentVoter >= G.players.length) {
-    // All votes in — show results
-    showResults();
+}
+
+// --- VOTE PHASE ---
+function renderVote(body, state) {
+  const isSt = state.myIdx === state.storytellerIdx;
+
+  if (isSt) {
+    body.innerHTML = `
+      <div class="phase-label">Голосование</div>
+      <div class="clue-display">"${state.clue}"</div>
+      <div class="voting-grid" id="vt-grid"></div>
+      <div class="waiting-msg" style="font-size:16px;">Игроки голосуют<span class="waiting-dots">...</span></div>
+      <div class="waiting-progress">${state.votedCount} / ${state.totalNonSt}</div>
+    `;
+    const grid = document.getElementById('vt-grid');
+    state.pool.forEach((cardId, i) => {
+      const el = createCardElement(cardId, { label: String(i + 1) });
+      el.style.cursor = 'default';
+      grid.appendChild(el);
+    });
     return;
   }
 
-  const player = G.players[G.currentVoter];
-  showHandoff(
-    player.name,
-    'Time to Vote',
-    `Look at the cards and vote for the one you think is the storyteller's. You cannot vote for your own card.`,
-    'vote',
-    () => showVoting()
-  );
-}
-
-function showVoting() {
-  G.selectedCard = null;
-  document.getElementById('voter-name').textContent = G.players[G.currentVoter].name;
-  document.getElementById('voting-clue').textContent = `"${G.clue}"`;
-  const grid = document.getElementById('voting-grid');
-  grid.innerHTML = '';
-
-  // Find this voter's card to disable it
-  const voterCard = G.contributions.find(c => c.playerIdx === G.currentVoter)?.cardId;
-
-  G.shuffledPool.forEach((entry, idx) => {
-    const wrapper = document.createElement('div');
-    wrapper.style.position = 'relative';
-    const el = createCardElement(entry.cardId, {
-      disabled: entry.cardId === voterCard,
-      label: String(idx + 1)
-    });
-    el.addEventListener('click', () => selectCard(el, 'vote'));
-    wrapper.appendChild(el);
-    grid.appendChild(wrapper);
-  });
-
-  document.getElementById('submit-vote-btn').disabled = true;
-  showScreen('voting-screen');
-}
-
-function submitVote() {
-  if (!G.selectedCard) return;
-  G.votes.push({ voterIdx: G.currentVoter, cardId: G.selectedCard });
-  G.currentVoter++;
-  nextVoter();
-}
-
-// ============================================================
-// RESULTS & SCORING
-// ============================================================
-function showResults() {
-  // Calculate scores
-  const roundScores = {};
-  G.players.forEach((_, i) => roundScores[i] = 0);
-
-  const storytellerCardId = G.storytellerCard;
-  const nonStorytellers = G.players.map((_, i) => i).filter(i => i !== G.storytellerIdx);
-  const correctVoters = G.votes.filter(v => v.cardId === storytellerCardId);
-  const allFound = correctVoters.length === nonStorytellers.length;
-  const noneFound = correctVoters.length === 0;
-
-  if (allFound || noneFound) {
-    // Storyteller gets 0, everyone else gets 2
-    nonStorytellers.forEach(i => roundScores[i] += 2);
-  } else {
-    // Storyteller gets 3, correct guessers get 3
-    roundScores[G.storytellerIdx] += 3;
-    correctVoters.forEach(v => roundScores[v.voterIdx] += 3);
+  if (state.alreadyVoted) {
+    body.innerHTML = `
+      <div class="phase-label">Голосование</div>
+      <div class="clue-display">"${state.clue}"</div>
+      <div class="waiting-msg">Ожидание остальных<span class="waiting-dots">...</span></div>
+      <div class="waiting-progress">${state.votedCount} / ${state.totalNonSt}</div>
+    `;
+    return;
   }
 
-  // Bonus: 1 point per vote on your bluff card (non-storyteller)
-  nonStorytellers.forEach(ownerIdx => {
-    const ownerCard = G.contributions.find(c => c.playerIdx === ownerIdx)?.cardId;
-    if (!ownerCard) return;
-    const votesOnThis = G.votes.filter(v => v.cardId === ownerCard).length;
-    roundScores[ownerIdx] += votesOnThis;
+  body.innerHTML = `
+    <div class="phase-label">Голосование</div>
+    <div class="clue-display">"${state.clue}"</div>
+    <p class="text-dim text-small text-center">Какая карта принадлежит рассказчику?</p>
+    <div class="voting-grid" id="vt-grid"></div>
+    <button class="btn btn--small" id="submit-vt-btn" onclick="doSubmitVote()" disabled>Голосовать</button>
+  `;
+  selectedCard = null;
+  const grid = document.getElementById('vt-grid');
+  state.pool.forEach((cardId, i) => {
+    const isOwn = cardId === state.ownCardId;
+    const el = createCardElement(cardId, { disabled: isOwn, label: String(i + 1) });
+    el.addEventListener('click', () => {
+      if (isOwn) return;
+      grid.querySelectorAll('.card-container').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedCard = cardId;
+      document.getElementById('submit-vt-btn').disabled = false;
+    });
+    grid.appendChild(el);
   });
+}
 
-  // Apply scores
-  G.players.forEach((player, i) => {
-    player.score += roundScores[i];
-  });
+function doSubmitVote() {
+  if (!selectedCard) return;
+  if (NET.isHost) {
+    hostOnVote(0, selectedCard);
+  } else {
+    sendToHost({ type: 'vote', cardId: selectedCard });
+  }
+}
 
-  // Build results UI
-  document.getElementById('results-clue').textContent = `"${G.clue}"`;
+// --- RESULTS PHASE ---
+function renderResults(body, state) {
+  const res = state.results;
+  if (!res) return;
 
-  const cardsArea = document.getElementById('results-cards');
-  cardsArea.innerHTML = '';
+  const isGameOver = res.isGameOver;
+  let html = '';
 
-  G.shuffledPool.forEach((entry) => {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'result-card-wrapper';
+  if (isGameOver) {
+    const winner = state.players.reduce((a, b) => a.score >= b.score ? a : b);
+    html += `<div class="game-over-banner">${winner.name} побеждает с ${winner.score} очками!</div>`;
+  }
 
-    const cardEl = createCardElement(entry.cardId);
-    cardEl.style.cursor = 'default';
-    if (entry.cardId === storytellerCardId) {
-      cardEl.classList.add('storyteller-card');
+  html += `<div class="phase-label">Раскрытие</div>`;
+  html += `<div class="clue-display">"${state.clue}"</div>`;
+  html += `<div class="results-cards-area">`;
+  res.pool.forEach(entry => {
+    const isSt = entry.isStoryteller;
+    html += `<div class="result-card-wrapper">`;
+    html += `<div class="card-container${isSt ? ' storyteller-card' : ''}" style="cursor:default;">`;
+    const idx = parseInt(entry.cardId.split('_')[1]);
+    html += `<img src="${IMAGE_FILES[idx]}" draggable="false" style="width:100%;height:100%;display:block;object-fit:cover;">`;
+    html += `</div>`;
+    html += `<div class="owner-label${isSt ? ' storyteller' : ''}">${entry.ownerName}${isSt ? ' ★' : ''}</div>`;
+    if (entry.voters.length > 0) {
+      html += `<div class="votes-list">Голоса: ${entry.voters.join(', ')}</div>`;
     }
-    wrapper.appendChild(cardEl);
-
-    // Owner label
-    const ownerLabel = document.createElement('div');
-    ownerLabel.className = 'owner-label' + (entry.cardId === storytellerCardId ? ' storyteller' : '');
-    ownerLabel.textContent = G.players[entry.playerIdx].name + (entry.cardId === storytellerCardId ? ' ★' : '');
-    wrapper.appendChild(ownerLabel);
-
-    // Who voted for this
-    const voters = G.votes.filter(v => v.cardId === entry.cardId).map(v => G.players[v.voterIdx].name);
-    if (voters.length > 0) {
-      const votesList = document.createElement('div');
-      votesList.className = 'votes-list';
-      votesList.textContent = 'Votes: ' + voters.join(', ');
-      wrapper.appendChild(votesList);
-    }
-
-    cardsArea.appendChild(wrapper);
+    html += `</div>`;
   });
+  html += `</div>`;
 
   // Score changes
-  const scoresDiv = document.getElementById('score-changes');
-  scoresDiv.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Points this round</div>';
-
-  // Sort by points this round descending
-  const sorted = G.players.map((p, i) => ({ name: p.name, pts: roundScores[i], total: p.score }))
+  html += `<div class="score-changes">`;
+  html += `<div style="color:var(--text-dim);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Очки за раунд</div>`;
+  const sorted = state.players.map((p, i) => ({ name: p.name, pts: res.roundScores[i] || 0, total: p.score }))
     .sort((a, b) => b.pts - a.pts);
-
-  sorted.forEach(entry => {
-    const row = document.createElement('div');
-    row.className = 'score-row';
-    row.innerHTML = `
-      <span class="name">${entry.name}</span>
-      <span class="points ${entry.pts === 0 ? 'zero' : ''}">+${entry.pts} (${entry.total})</span>
-    `;
-    scoresDiv.appendChild(row);
+  sorted.forEach(e => {
+    html += `<div class="score-row">
+      <span class="name">${e.name}</span>
+      <span class="points ${e.pts === 0 ? 'zero' : ''}">+${e.pts} (${e.total})</span>
+    </div>`;
   });
+  html += `</div>`;
 
-  showScreen('results-screen');
-}
-
-// ============================================================
-// SCOREBOARD
-// ============================================================
-function showScoreboard() {
-  // Check game over
-  const maxScore = Math.max(...G.players.map(p => p.score));
-  G.gameOver = maxScore >= G.WIN_SCORE;
-
-  const title = document.getElementById('scoreboard-title');
-  const banner = document.getElementById('game-over-banner');
-  const nextBtn = document.getElementById('next-round-btn');
-  const newBtn = document.getElementById('new-game-btn');
-
-  if (G.gameOver) {
-    const winner = G.players.reduce((a, b) => a.score >= b.score ? a : b);
-    title.textContent = 'Final Scores';
-    banner.style.display = 'block';
-    banner.textContent = `${winner.name} wins with ${winner.score} points!`;
-    nextBtn.style.display = 'none';
-    newBtn.style.display = 'inline-block';
+  if (isGameOver) {
+    html += `<button class="btn mt-12" onclick="showTitle()">На главную</button>`;
+  } else if (NET.isHost) {
+    html += `<button class="btn mt-12" onclick="hostNextRound()">Следующий раунд</button>`;
   } else {
-    title.textContent = `Scoreboard — Round ${G.round}`;
-    banner.style.display = 'none';
-    nextBtn.style.display = 'inline-block';
-    newBtn.style.display = 'none';
+    html += `<div class="waiting-msg" style="font-size:14px;margin-top:12px;">Ожидание хоста<span class="waiting-dots">...</span></div>`;
   }
 
-  const table = document.getElementById('scoreboard-table');
-  table.innerHTML = '';
-
-  const sorted = [...G.players].sort((a, b) => b.score - a.score);
-  const topScore = sorted[0]?.score || 1;
-
-  sorted.forEach((player, idx) => {
-    const entry = document.createElement('div');
-    entry.className = 'scoreboard-entry' + (idx === 0 ? ' leader' : '');
-    const pct = topScore > 0 ? (player.score / Math.max(topScore, G.WIN_SCORE)) * 100 : 0;
-    entry.innerHTML = `
-      <span class="scoreboard-rank">${idx + 1}</span>
-      <span class="scoreboard-name">${player.name}</span>
-      <div class="scoreboard-bar"><div class="scoreboard-bar-fill" style="width:${pct}%"></div></div>
-      <span class="scoreboard-points">${player.score}</span>
-    `;
-    table.appendChild(entry);
-  });
-
-  showScreen('scoreboard-screen');
+  body.innerHTML = html;
 }
 
 // ============================================================
-// NEXT ROUND
+// HOST PLAYER ACTIONS (idx 0)
 // ============================================================
-function nextRound() {
-  // Rotate storyteller
-  G.storytellerIdx = (G.storytellerIdx + 1) % G.players.length;
-
-  // Recycle: collect all cards not in any player's hand back into the deck
-  const inHands = new Set();
-  for (const player of G.players) {
-    for (const c of player.hand) inHands.add(c);
-  }
-  G.deck = shuffle(G.allCardIds.filter(id => !inHands.has(id)));
-
-  // Refill hands to HAND_SIZE
-  for (const player of G.players) {
-    while (player.hand.length < HAND_SIZE && G.deck.length > 0) {
-      player.hand.push(G.deck.pop());
-    }
-  }
-
-  startRound();
-}
-
-// ============================================================
-// END GAME
-// ============================================================
-function endGame() {
-  G.gameOver = true;
-  showScoreboard();
-}
+// Host actions go through the same hostOn* functions but we
+// need to handle the case where conn is null (local player).
+// We already handle this — hostOnMessage checks for _fromHost
+// but actually the direct calls from doSubmitClue etc. bypass it.
+// The direct calls in doSubmitClue/doSubmitContribute/doSubmitVote
+// already call hostOnStoryteller/etc. directly for host. Good.
 
 // ============================================================
 // INIT
