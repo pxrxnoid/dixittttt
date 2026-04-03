@@ -720,6 +720,9 @@ input {
   transition: opacity 0.2s;
 }
 .admin-gallery-item:hover .delete-btn { opacity: 1; }
+@media (max-width: 768px) {
+  .admin-gallery-item .delete-btn { opacity: 0.85; }
+}
 .admin-gallery-item .img-badge {
   position: absolute;
   bottom: 0; left: 0; right: 0;
@@ -1320,6 +1323,9 @@ function hostSendState() {
     if (HOST.phase === 'vote' || HOST.phase === 'results') {
       state.pool = HOST.shuffledPool.map(e => e.cardId);
     }
+    if (HOST.phase === 'contribute') {
+      state.alreadyContributed = HOST.contributions.some(c => c.playerIdx === idx);
+    }
     if (HOST.phase === 'vote') {
       state.ownCardId = HOST.contributions.find(c => c.playerIdx === idx)?.cardId;
       state.alreadyVoted = HOST.votes.some(v => v.voterIdx === idx);
@@ -1363,15 +1369,32 @@ function doStartGame() {
   // Reset scores
   HOST.players.forEach(p => { p.score = 0; p.hand = []; });
 
-  // Deal initial hands
-  HOST.deck = shuffle([...HOST.allCardIds]);
+  // Deal initial hands — recycle deck if needed
+  dealHands();
+  hostStartRound();
+}
+
+function dealHands() {
+  // Collect all cards NOT in anyone's hand into the deck
+  const inHands = new Set();
+  HOST.players.forEach(p => p.hand.forEach(c => inHands.add(c)));
+  HOST.deck = shuffle(HOST.allCardIds.filter(id => !inHands.has(id)));
+
+  // Deal to each player up to HAND_SIZE
   HOST.players.forEach(p => {
-    for (let i = 0; i < HAND_SIZE; i++) {
-      if (HOST.deck.length > 0) p.hand.push(HOST.deck.pop());
+    while (p.hand.length < HAND_SIZE && HOST.deck.length > 0) {
+      p.hand.push(HOST.deck.pop());
+    }
+    // If deck ran out, reshuffle all unused cards (not in any hand) and continue
+    if (p.hand.length < HAND_SIZE) {
+      const stillInHands = new Set();
+      HOST.players.forEach(pl => pl.hand.forEach(c => stillInHands.add(c)));
+      HOST.deck = shuffle(HOST.allCardIds.filter(id => !stillInHands.has(id)));
+      while (p.hand.length < HAND_SIZE && HOST.deck.length > 0) {
+        p.hand.push(HOST.deck.pop());
+      }
     }
   });
-
-  hostStartRound();
 }
 
 function hostStartRound() {
@@ -1474,23 +1497,14 @@ function calculateScores() {
 function hostNextRound() {
   // Check game over
   if (HOST.players.some(p => p.score >= HOST.winScore)) {
-    // Game is over — results already show this
     return;
   }
 
   // Rotate storyteller
   HOST.storytellerIdx = (HOST.storytellerIdx + 1) % HOST.players.length;
 
-  // Recycle cards
-  const inHands = new Set();
-  HOST.players.forEach(p => p.hand.forEach(c => inHands.add(c)));
-  HOST.deck = shuffle(HOST.allCardIds.filter(id => !inHands.has(id)));
-
-  HOST.players.forEach(p => {
-    while (p.hand.length < HAND_SIZE && HOST.deck.length > 0) {
-      p.hand.push(HOST.deck.pop());
-    }
-  });
+  // Refill all hands to HAND_SIZE
+  dealHands();
 
   hostStartRound();
 }
@@ -1651,10 +1665,8 @@ function renderContribute(body, state) {
     return;
   }
 
-  // Check if already contributed
-  const myContrib = state.hand.length < HAND_SIZE; // crude check: hand shrinks after contributing
-  // Better: server sends explicit flag
-  if (state.hand.length < HAND_SIZE) {
+  // Check if already contributed (use server-sent flag)
+  if (state.alreadyContributed) {
     body.innerHTML = `
       <div class="phase-label">Ассоциация</div>
       <div class="clue-display">"${state.clue}"</div>
@@ -1841,29 +1853,44 @@ async function initImages() {
 }
 
 async function apiUploadImage(dataUrl, name) {
-  await fetch('/api/images', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Admin-Password': ADMIN_PASSWORD },
-    body: JSON.stringify({ dataUrl, name })
-  });
-  await initImages();
+  try {
+    const res = await fetch('/api/images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': ADMIN_PASSWORD },
+      body: JSON.stringify({ dataUrl, name })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    await initImages();
+  } catch (e) {
+    showStatus('Ошибка загрузки: ' + e.message);
+  }
 }
 
 async function apiDeleteDefault(filename) {
-  await fetch('/api/images/default/' + encodeURIComponent(filename), {
-    method: 'DELETE',
-    headers: { 'X-Admin-Password': ADMIN_PASSWORD }
-  });
-  await initImages();
+  try {
+    const res = await fetch('/api/images/default/' + encodeURIComponent(filename), {
+      method: 'DELETE',
+      headers: { 'X-Admin-Password': ADMIN_PASSWORD }
+    });
+    if (!res.ok) throw new Error(await res.text());
+    await initImages();
+  } catch (e) {
+    showStatus('Ошибка удаления: ' + e.message);
+  }
 }
 
 async function apiDeleteCustom(fullPath) {
-  const filename = fullPath.replace('custom-cards/', '');
-  await fetch('/api/images/custom/' + encodeURIComponent(filename), {
-    method: 'DELETE',
-    headers: { 'X-Admin-Password': ADMIN_PASSWORD }
-  });
-  await initImages();
+  try {
+    const filename = fullPath.replace('custom-cards/', '');
+    const res = await fetch('/api/images/custom/' + encodeURIComponent(filename), {
+      method: 'DELETE',
+      headers: { 'X-Admin-Password': ADMIN_PASSWORD }
+    });
+    if (!res.ok) throw new Error(await res.text());
+    await initImages();
+  } catch (e) {
+    showStatus('Ошибка удаления: ' + e.message);
+  }
 }
 
 // ============================================================
