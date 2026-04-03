@@ -339,13 +339,13 @@ input {
   font-weight: 500;
 }
 
-/* Sidebar scoreboard (floating) */
+/* Scoreboard (floating bottom-right) */
 .scores-toggle {
   position: fixed;
-  top: 12px;
-  right: 12px;
+  bottom: 20px;
+  right: 20px;
   z-index: 100;
-  width: 40px; height: 40px;
+  width: 44px; height: 44px;
   border-radius: 50%;
   background: var(--bg-surface);
   border: 1px solid var(--text-muted);
@@ -355,53 +355,62 @@ input {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
 }
 .scores-toggle.visible { display: flex; }
 
 .scores-panel {
   position: fixed;
-  top: 0; right: 0;
-  width: 260px;
-  height: 100%;
+  bottom: 16px; right: 16px;
+  width: 200px;
+  max-height: 280px;
   background: var(--bg-surface);
-  border-left: 1px solid var(--text-muted);
+  border: 1px solid var(--text-muted);
+  border-radius: 12px;
   z-index: 99;
-  transform: translateX(100%);
+  transform: translateX(calc(100% + 32px));
   transition: transform 0.3s ease;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 .scores-panel.open { transform: translateX(0); }
 .scores-panel-title {
   font-family: 'Playfair Display', serif;
-  font-size: 18px;
+  font-size: 15px;
   color: var(--gold);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .scores-panel-close {
   position: absolute;
-  top: 12px; right: 12px;
+  top: 8px; right: 10px;
   background: none;
   color: var(--text-dim);
-  font-size: 22px;
+  font-size: 20px;
   cursor: pointer;
 }
 .sp-entry {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: rgba(0,0,0,0.2);
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
 }
 .sp-entry.storyteller { border-left: 3px solid var(--gold); }
 .sp-entry .sp-name { font-weight: 500; }
 .sp-entry .sp-pts { color: var(--accent-blue); font-weight: 600; }
 .sp-entry.storyteller .sp-name { color: var(--gold); }
+
+/* Desktop: always show scores panel during game, hide toggle */
+@media (min-width: 769px) {
+  .scores-toggle.visible { display: none !important; }
+  .scores-panel-close { display: none; }
+}
 
 /* Game body */
 .game-body {
@@ -586,6 +595,147 @@ input {
 .status-bar.show { transform: translateY(0); }
 
 /* ============================================================
+   ADMIN PANEL
+   ============================================================ */
+.admin-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--text-muted);
+  color: var(--text-dim);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.admin-btn:hover { color: var(--gold); border-color: var(--gold); }
+
+.admin-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.admin-overlay.open { display: flex; }
+
+.admin-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--text-muted);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--text-muted);
+  flex-shrink: 0;
+}
+.admin-header h2 {
+  font-size: 20px;
+  color: var(--gold);
+}
+.admin-close {
+  background: none;
+  color: var(--text-dim);
+  font-size: 24px;
+  cursor: pointer;
+}
+.admin-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.admin-password-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 0;
+}
+.admin-upload-area {
+  border: 2px dashed var(--text-muted);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+.admin-upload-area:hover { border-color: var(--gold); }
+.admin-upload-area input { display: none; }
+.admin-upload-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+.admin-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+.admin-gallery-item {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  aspect-ratio: 5/7;
+  background: var(--bg-surface);
+}
+.admin-gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.admin-gallery-item .delete-btn {
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.7);
+  color: var(--danger);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.admin-gallery-item:hover .delete-btn { opacity: 1; }
+.admin-gallery-item .img-badge {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.6);
+  color: var(--text-dim);
+  font-size: 10px;
+  padding: 2px 6px;
+  text-align: center;
+}
+.admin-count {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 480px) {
@@ -612,6 +762,7 @@ input {
   <!-- TITLE -->
   <div id="title-screen" class="screen active">
     <div class="title-particles" id="title-particles"></div>
+    <button class="admin-btn" onclick="openAdmin()" title="Управление картинками">🖼</button>
     <div class="title-logo">Reverie</div>
     <div class="title-sub">игра ассоциаций</div>
     <div class="title-buttons">
@@ -681,11 +832,24 @@ input {
 <!-- Status bar -->
 <div class="status-bar" id="status-bar"></div>
 
+<!-- Admin overlay -->
+<div class="admin-overlay" id="admin-overlay">
+  <div class="admin-modal">
+    <div class="admin-header">
+      <h2 id="admin-title">Управление картинками</h2>
+      <button class="admin-close" onclick="closeAdmin()">&times;</button>
+    </div>
+    <div class="admin-body" id="admin-body">
+      <!-- Filled dynamically -->
+    </div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // CONSTANTS
 // ============================================================
-const IMAGE_FILES = [
+const DEFAULT_IMAGES = [
   '1E8B0269-6F4A-455E-8E32-D92A80529A71.JPG',
   '4A06414C-606A-4326-B9AF-F92E56E52264 (1).JPG',
   '85D134AB-4E4B-47BE-AB7F-36E0E29F8533.PNG',
@@ -695,8 +859,11 @@ const IMAGE_FILES = [
   'IMG_6944.JPG',
   'IMG_7085.JPG'
 ];
+let IMAGE_FILES = [...DEFAULT_IMAGES];
+let customImages = []; // [{id, dataUrl, name}]
 const HAND_SIZE = 2;
 const PEER_PREFIX = 'reverie-game-';
+const ADMIN_PASSWORD = 'maslo54';
 
 // ============================================================
 // STATE
@@ -740,11 +907,15 @@ let selectedCard = null;
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  // Show/hide scores toggle
   const toggle = document.getElementById('scores-toggle');
-  toggle.classList.toggle('visible', id === 'game-screen');
-  if (id !== 'game-screen') {
-    document.getElementById('scores-panel').classList.remove('open');
+  const panel = document.getElementById('scores-panel');
+  if (id === 'game-screen') {
+    toggle.classList.add('visible');
+    // Desktop: auto-open scores panel
+    if (window.innerWidth > 768) panel.classList.add('open');
+  } else {
+    toggle.classList.remove('visible');
+    panel.classList.remove('open');
   }
 }
 
@@ -1050,7 +1221,8 @@ function hostBroadcastLobby() {
     type: 'lobby',
     players: HOST.players.map(p => ({ name: p.name })),
     winScore: HOST.winScore,
-    roomCode: NET.roomCode
+    roomCode: NET.roomCode,
+    imageFiles: IMAGE_FILES
   };
   NET.conns.forEach(c => c.conn.send(msg));
 }
@@ -1266,6 +1438,7 @@ function clientOnMessage(data) {
   }
   if (data.type === 'lobby') {
     localState = data;
+    if (data.imageFiles) IMAGE_FILES = data.imageFiles;
     document.getElementById('lobby-code').textContent = data.roomCode;
     document.getElementById('join-status').style.display = 'none';
     document.getElementById('join-btn').disabled = false;
@@ -1585,9 +1758,234 @@ function renderResults(body, state) {
 // already call hostOnStoryteller/etc. directly for host. Good.
 
 // ============================================================
+// INDEXEDDB — PERSISTENT IMAGE STORAGE
+// ============================================================
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('reverie-images', 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('images')) {
+        db.createObjectStore('images', { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function loadCustomImages() {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction('images', 'readonly');
+      const store = tx.objectStore('images');
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+  } catch { return []; }
+}
+
+async function saveCustomImage(dataUrl, name) {
+  const db = await openDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction('images', 'readwrite');
+    const store = tx.objectStore('images');
+    const req = store.add({ dataUrl, name, addedAt: Date.now() });
+    req.onsuccess = () => resolve(req.result);
+  });
+}
+
+async function deleteCustomImage(id) {
+  const db = await openDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction('images', 'readwrite');
+    const store = tx.objectStore('images');
+    store.delete(id);
+    tx.oncomplete = () => resolve();
+  });
+}
+
+function rebuildImageFiles() {
+  IMAGE_FILES = [...DEFAULT_IMAGES, ...customImages.map(c => c.dataUrl)];
+}
+
+async function initImages() {
+  customImages = await loadCustomImages();
+  rebuildImageFiles();
+}
+
+// ============================================================
+// IMAGE COMPRESSION
+// ============================================================
+function compressImage(file, maxW = 1200, maxH = 1200, maxSizeKB = 300) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxW || h > maxH) {
+        const r = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * r);
+        h = Math.round(h * r);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      let q = 0.75;
+      let dataUrl = canvas.toDataURL('image/jpeg', q);
+      // Reduce quality until under maxSize
+      while (dataUrl.length > maxSizeKB * 1370 && q > 0.15) {
+        q -= 0.1;
+        dataUrl = canvas.toDataURL('image/jpeg', q);
+      }
+      URL.revokeObjectURL(img.src);
+      resolve(dataUrl);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// ============================================================
+// ADMIN PANEL
+// ============================================================
+let adminAuthed = false;
+
+function openAdmin() {
+  document.getElementById('admin-overlay').classList.add('open');
+  if (adminAuthed) {
+    renderAdminGallery();
+  } else {
+    renderAdminPassword();
+  }
+}
+
+function closeAdmin() {
+  document.getElementById('admin-overlay').classList.remove('open');
+}
+
+function renderAdminPassword() {
+  const body = document.getElementById('admin-body');
+  body.innerHTML = `
+    <div class="admin-password-form">
+      <p class="text-dim text-small">Введите пароль администратора</p>
+      <input class="input-field" id="admin-pw" type="password" placeholder="Пароль" autocomplete="off">
+      <button class="btn btn--small" onclick="checkAdminPassword()">Войти</button>
+      <p id="admin-pw-error" style="color:var(--danger);font-size:13px;display:none;">Неверный пароль</p>
+    </div>
+  `;
+  setTimeout(() => document.getElementById('admin-pw')?.focus(), 100);
+  document.getElementById('admin-pw')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') checkAdminPassword();
+  });
+}
+
+function checkAdminPassword() {
+  const pw = document.getElementById('admin-pw')?.value;
+  if (pw === ADMIN_PASSWORD) {
+    adminAuthed = true;
+    renderAdminGallery();
+  } else {
+    const err = document.getElementById('admin-pw-error');
+    if (err) err.style.display = 'block';
+  }
+}
+
+async function renderAdminGallery() {
+  const body = document.getElementById('admin-body');
+  const total = IMAGE_FILES.length;
+  const defaultCount = DEFAULT_IMAGES.length;
+  const customCount = customImages.length;
+
+  let html = `
+    <div class="admin-upload-area" id="admin-upload-area">
+      <div style="font-size:28px;margin-bottom:8px;">📤</div>
+      <div style="color:var(--text);font-size:14px;">Нажмите или перетащите файлы</div>
+      <div class="admin-upload-hint">
+        JPG/PNG/WebP • Рекомендуется 600×840px (соотношение 5:7)<br>
+        Макс. размер: 5 МБ на файл • Изображения сжимаются автоматически (~300 КБ)
+      </div>
+      <input type="file" id="admin-file-input" accept="image/*" multiple>
+    </div>
+    <div class="admin-count">Всего карт: ${total} (базовых: ${defaultCount}, добавленных: ${customCount})</div>
+    <div class="admin-gallery" id="admin-gallery">
+  `;
+
+  // Default images
+  DEFAULT_IMAGES.forEach((src, i) => {
+    html += `
+      <div class="admin-gallery-item">
+        <img src="${src}" loading="lazy">
+        <div class="img-badge">базовая</div>
+      </div>
+    `;
+  });
+
+  // Custom images
+  customImages.forEach((img) => {
+    html += `
+      <div class="admin-gallery-item">
+        <img src="${img.dataUrl}" loading="lazy">
+        <button class="delete-btn" onclick="adminDeleteImage(${img.id})" title="Удалить">🗑</button>
+        <div class="img-badge">${img.name || 'custom'}</div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  body.innerHTML = html;
+
+  // Upload handlers
+  const uploadArea = document.getElementById('admin-upload-area');
+  const fileInput = document.getElementById('admin-file-input');
+
+  uploadArea.addEventListener('click', () => fileInput.click());
+  uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.style.borderColor = 'var(--gold)'; });
+  uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = ''; });
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.style.borderColor = '';
+    handleAdminFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', () => handleAdminFiles(fileInput.files));
+}
+
+async function handleAdminFiles(files) {
+  if (!files || files.length === 0) return;
+  const uploadArea = document.getElementById('admin-upload-area');
+  const origHTML = uploadArea.innerHTML;
+  uploadArea.innerHTML = '<div style="color:var(--gold);font-size:14px;">Сжатие и сохранение...</div>';
+
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) continue;
+    if (file.size > 5 * 1024 * 1024) {
+      showStatus(`${file.name} слишком большой (макс. 5 МБ)`);
+      continue;
+    }
+    const dataUrl = await compressImage(file);
+    const id = await saveCustomImage(dataUrl, file.name);
+    customImages.push({ id, dataUrl, name: file.name });
+  }
+
+  rebuildImageFiles();
+  renderAdminGallery();
+}
+
+async function adminDeleteImage(id) {
+  await deleteCustomImage(id);
+  customImages = customImages.filter(c => c.id !== id);
+  rebuildImageFiles();
+  renderAdminGallery();
+}
+
+// ============================================================
 // INIT
 // ============================================================
-showTitle();
+(async () => {
+  await initImages();
+  showTitle();
+})();
 </script>
 </body>
 </html>
