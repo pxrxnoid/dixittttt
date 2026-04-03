@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Reverie — A Game of Dreams</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-deep: #0d1117;
+  --bg-card: #161b22;
+  --bg-surface: #1c2333;
+  --gold: #e8a83e;
+  --gold-dim: #b8862e;
+  --gold-glow: rgba(232, 168, 62, 0.3);
+  --amber: #f0c060;
+  --text: #e6edf3;
+  --text-dim: #8b949e;
+  --text-muted: #484f58;
+  --accent-blue: #58a6ff;
+  --accent-purple: #bc8cff;
+  --accent-rose: #f78166;
+  --success: #56d364;
+  --danger: #f85149;
+  --card-w: 120px;
+  --card-h: 168px;
+  --radius: 12px;
+  --transition: 0.3s ease;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg-deep);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+h1, h2, h3 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+}
+
+button {
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input {
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+
+/* ============================================================
+   APP CONTAINER
+   ============================================================ */
+#app {
+  width: 100%; height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+  overflow-y: auto;
+}
+.screen.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ============================================================
+   SHARED UI COMPONENTS
+   ============================================================ */
+.btn {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+  color: var(--bg-deep);
+  font-weight: 600;
+  font-size: 16px;
+  padding: 14px 36px;
+  border-radius: 50px;
+  letter-spacing: 0.5px;
+  transition: transform var(--transition), box-shadow var(--transition);
+  box-shadow: 0 4px 20px var(--gold-glow);
+}
+.btn:active { transform: scale(0.96); }
+.btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.btn--secondary {
+  background: var(--bg-surface);
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  border: 1px solid var(--text-muted);
+}
+.btn--small {
+  font-size: 14px;
+  padding: 10px 24px;
+}
+.btn--danger {
+  background: linear-gradient(135deg, var(--danger), #c0392b);
+  color: white;
+  box-shadow: 0 4px 20px rgba(248,81,73,0.3);
+}
+
+.phase-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+
+.clue-display {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 24px;
+  color: var(--amber);
+  text-align: center;
+  margin: 12px 0;
+  padding: 12px 24px;
+  border-left: 3px solid var(--gold-dim);
+  max-width: 400px;
+  word-break: break-word;
+}
+
+/* ============================================================
+   TITLE SCREEN
+   ============================================================ */
+#title-screen {
+  background: radial-gradient(ellipse at 50% 30%, #1a2340 0%, var(--bg-deep) 70%);
+}
+.title-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 64px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--gold), var(--amber), #f4d896);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.title-sub {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 18px;
+  color: var(--text-dim);
+  margin-bottom: 48px;
+}
+.title-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.title-particle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0;
+  animation: floatUp linear infinite;
+}
+@keyframes floatUp {
+  0% { opacity: 0; transform: translateY(0) scale(0); }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.6; }
+  100% { opacity: 0; transform: translateY(-100vh) scale(1); }
+}
+
+/* ============================================================
+   SETUP SCREEN
+   ============================================================ */
+#setup-screen {
+  background: radial-gradient(ellipse at 50% 60%, #1a2340 0%, var(--bg-deep) 70%);
+  gap: 16px;
+}
+.setup-title { font-size: 28px; color: var(--gold); margin-bottom: 8px; }
+.setup-subtitle { color: var(--text-dim); font-size: 14px; margin-bottom: 16px; }
+.player-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+}
+.player-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.player-input-row input {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--text-muted);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--text);
+  font-size: 15px;
+  transition: border-color var(--transition);
+}
+.player-input-row input:focus {
+  border-color: var(--gold);
+}
+.player-input-row .remove-player {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: var(--text-dim);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition), background var(--transition);
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.player-input-row .remove-player:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.setup-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ============================================================
+   HANDOFF SCREEN
+   ============================================================ */
+#handoff-screen {
+  background: radial-gradient(ellipse at 50% 40%, #1a2340 0%, var(--bg-deep) 70%);
+  gap: 20px;
+  text-align: center;
+}
+.handoff-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px;
+  color: var(--gold);
+}
+.handoff-role {
+  color: var(--text-dim);
+  font-size: 16px;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   STORYTELLER SCREEN
+   ============================================================ */
+#storyteller-screen {
+  background: radial-gradient(ellipse at 50% 80%, #1a2340 0%, var(--bg-deep) 70%);
+  justify-content: flex-start;
+  padding-top: 20px;
+  gap: 12px;
+}
+.clue-input-area {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 400px;
+  align-items: center;
+}
+.clue-input-area input {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--text-muted);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--text);
+  font-size: 15px;
+  transition: border-color var(--transition);
+}
+.clue-input-area input:focus { border-color: var(--gold); }
+
+/* ============================================================
+   CONTRIBUTE SCREEN
+   ============================================================ */
+#contribute-screen {
+  background: radial-gradient(ellipse at 50% 80%, #1a2340 0%, var(--bg-deep) 70%);
+  justify-content: flex-start;
+  padding-top: 20px;
+  gap: 12px;
+}
+
+/* ============================================================
+   VOTING SCREEN
+   ============================================================ */
+#voting-screen {
+  background: radial-gradient(ellipse at 50% 50%, #1a2340 0%, var(--bg-deep) 70%);
+  justify-content: flex-start;
+  padding-top: 20px;
+  gap: 12px;
+}
+.voter-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  color: var(--accent-purple);
+}
+
+/* ============================================================
+   RESULTS SCREEN
+   ============================================================ */
+#results-screen {
+  background: radial-gradient(ellipse at 50% 30%, #1a2340 0%, var(--bg-deep) 70%);
+  justify-content: flex-start;
+  padding-top: 20px;
+  gap: 16px;
+  overflow-y: auto;
+}
+.results-cards-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  max-width: 600px;
+}
+.result-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.result-card-wrapper .owner-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.result-card-wrapper .owner-label.storyteller {
+  color: var(--gold);
+  font-weight: 600;
+}
+.result-card-wrapper .votes-list {
+  font-size: 11px;
+  color: var(--accent-blue);
+  text-align: center;
+}
+.result-card-wrapper .card-container.storyteller-card {
+  box-shadow: 0 0 20px var(--gold-glow), 0 0 40px var(--gold-glow);
+  border: 2px solid var(--gold);
+}
+.score-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 360px;
+}
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--bg-surface);
+  border-radius: 8px;
+}
+.score-row .name { font-weight: 500; }
+.score-row .points {
+  color: var(--success);
+  font-weight: 600;
+}
+.score-row .points.zero { color: var(--text-muted); }
+
+/* ============================================================
+   SCOREBOARD SCREEN
+   ============================================================ */
+#scoreboard-screen {
+  background: radial-gradient(ellipse at 50% 30%, #1a2340 0%, var(--bg-deep) 70%);
+  gap: 20px;
+}
+.scoreboard-title { font-size: 28px; color: var(--gold); }
+.scoreboard-table {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.scoreboard-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-radius: 10px;
+  transition: transform var(--transition);
+}
+.scoreboard-entry.leader {
+  background: linear-gradient(135deg, rgba(232,168,62,0.15), rgba(232,168,62,0.05));
+  border: 1px solid var(--gold-dim);
+}
+.scoreboard-rank {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  color: var(--text-muted);
+  min-width: 28px;
+  text-align: center;
+}
+.scoreboard-entry.leader .scoreboard-rank { color: var(--gold); }
+.scoreboard-name { flex: 1; font-weight: 500; font-size: 16px; }
+.scoreboard-points {
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--accent-blue);
+}
+.scoreboard-entry.leader .scoreboard-points { color: var(--gold); }
+.scoreboard-bar {
+  height: 4px;
+  background: var(--text-muted);
+  border-radius: 2px;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+.scoreboard-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+  transition: width 0.6s ease;
+}
+.scoreboard-entry.leader .scoreboard-bar-fill {
+  background: linear-gradient(90deg, var(--gold), var(--amber));
+}
+
+/* Game Over */
+.game-over-banner {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  color: var(--amber);
+  text-align: center;
+}
+
+/* ============================================================
+   CARD STYLES
+   ============================================================ */
+.hand-area {
+  display: flex;
+  gap: 10px;
+  padding: 12px 8px;
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) transparent;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.card-container {
+  width: var(--card-w);
+  min-width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 2px solid var(--text-muted);
+  cursor: pointer;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+.card-container:active { transform: scale(0.97); }
+.card-container.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 16px var(--gold-glow), 0 8px 24px rgba(0,0,0,0.4);
+  transform: translateY(-6px);
+}
+.card-container.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.card-container svg,
+.card-container img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.card-number {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* Voting grid */
+.voting-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  max-width: 560px;
+}
+.voting-grid .card-container {
+  width: 110px;
+  min-width: 110px;
+  height: 154px;
+}
+.voting-grid .vote-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 480px) {
+  .title-logo { font-size: 44px; }
+  .title-sub { font-size: 15px; }
+  :root {
+    --card-w: 95px;
+    --card-h: 133px;
+  }
+  .voting-grid .card-container {
+    width: 90px;
+    min-width: 90px;
+    height: 126px;
+  }
+  .clue-display { font-size: 20px; }
+  .handoff-name { font-size: 28px; }
+}
+
+@media (max-width: 360px) {
+  :root {
+    --card-w: 80px;
+    --card-h: 112px;
+  }
+  .voting-grid .card-container {
+    width: 78px;
+    min-width: 78px;
+    height: 109px;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- TITLE SCREEN -->
+  <div id="title-screen" class="screen active">
+    <div class="title-particles" id="title-particles"></div>
+    <div class="title-logo">Reverie</div>
+    <div class="title-sub">a game of dreams &amp; whispers</div>
+    <button class="btn" onclick="showSetup()">New Game</button>
+  </div>
+
+  <!-- SETUP SCREEN -->
+  <div id="setup-screen" class="screen">
+    <h2 class="setup-title">Gather the Dreamers</h2>
+    <p class="setup-subtitle">3 – 6 players</p>
+    <div class="player-inputs" id="player-inputs"></div>
+    <div class="setup-actions">
+      <button class="btn--secondary btn btn--small" onclick="addPlayerInput()">+ Add Player</button>
+      <button class="btn" id="start-btn" onclick="startGame()">Begin</button>
+    </div>
+  </div>
+
+  <!-- HANDOFF SCREEN -->
+  <div id="handoff-screen" class="screen">
+    <div class="phase-label" id="handoff-phase"></div>
+    <div class="handoff-name" id="handoff-name"></div>
+    <div class="handoff-role" id="handoff-role"></div>
+    <button class="btn" id="handoff-btn" onclick="handoffContinue()">Ready</button>
+  </div>
+
+  <!-- STORYTELLER SCREEN -->
+  <div id="storyteller-screen" class="screen">
+    <div class="phase-label">Storyteller</div>
+    <p style="color:var(--text-dim);font-size:14px;text-align:center;max-width:340px;">Choose a card from your hand, then give a clue — a word, phrase, or feeling that connects to it.</p>
+    <div class="hand-area" id="storyteller-hand"></div>
+    <div class="clue-input-area">
+      <input type="text" id="clue-input" placeholder="Enter your clue…" maxlength="100" autocomplete="off">
+      <button class="btn btn--small" id="submit-clue-btn" onclick="submitClue()" disabled>Go</button>
+    </div>
+  </div>
+
+  <!-- CONTRIBUTE SCREEN -->
+  <div id="contribute-screen" class="screen">
+    <div class="phase-label">Choose a Bluff</div>
+    <div class="clue-display" id="contribute-clue"></div>
+    <p style="color:var(--text-dim);font-size:13px;text-align:center;max-width:320px;">Pick a card from your hand that could also match this clue.</p>
+    <div class="hand-area" id="contribute-hand"></div>
+    <button class="btn btn--small" id="submit-contribute-btn" onclick="submitContribute()" disabled>Submit Card</button>
+  </div>
+
+  <!-- VOTING SCREEN -->
+  <div id="voting-screen" class="screen">
+    <div class="phase-label">Vote</div>
+    <div class="voter-name" id="voter-name"></div>
+    <div class="clue-display" id="voting-clue"></div>
+    <p style="color:var(--text-dim);font-size:13px;text-align:center;">Which card belongs to the storyteller?</p>
+    <div class="voting-grid" id="voting-grid"></div>
+    <button class="btn btn--small" id="submit-vote-btn" onclick="submitVote()" disabled>Cast Vote</button>
+  </div>
+
+  <!-- RESULTS SCREEN -->
+  <div id="results-screen" class="screen">
+    <div class="phase-label">Reveal</div>
+    <div class="clue-display" id="results-clue"></div>
+    <div class="results-cards-area" id="results-cards"></div>
+    <div class="score-changes" id="score-changes"></div>
+    <button class="btn" onclick="showScoreboard()">Scoreboard</button>
+  </div>
+
+  <!-- SCOREBOARD SCREEN -->
+  <div id="scoreboard-screen" class="screen">
+    <h2 class="scoreboard-title" id="scoreboard-title">Scoreboard</h2>
+    <div class="game-over-banner" id="game-over-banner" style="display:none;"></div>
+    <div class="scoreboard-table" id="scoreboard-table"></div>
+    <button class="btn" id="next-round-btn" onclick="nextRound()">Next Round</button>
+    <button class="btn btn--secondary btn--small" id="new-game-btn" onclick="showTitle()" style="display:none;">New Game</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// GAME STATE
+// ============================================================
+const G = {
+  players: [],        // [{name, score, hand:[cardId,...]}]
+  deck: [],           // [cardId, ...]
+  cards: {},          // {id: {id, render()}}
+  round: 0,
+  storytellerIdx: 0,
+  storytellerCard: null,
+  clue: '',
+  contributions: [],  // [{playerIdx, cardId}]
+  votes: [],          // [{voterIdx, cardId}]
+  shuffledPool: [],   // [{cardId, ownerIdx}] — shuffled for voting
+  phase: 'title',
+  gameOver: false,
+  currentContributor: 0,
+  currentVoter: 0,
+  selectedCard: null,
+  WIN_SCORE: 30
+};
+
+// ============================================================
+// SCREEN MANAGEMENT
+// ============================================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showTitle() {
+  G.phase = 'title';
+  showScreen('title-screen');
+}
+
+// ============================================================
+// TITLE SCREEN PARTICLES
+// ============================================================
+(function initParticles() {
+  const c = document.getElementById('title-particles');
+  const colors = ['#e8a83e', '#f0c060', '#bc8cff', '#58a6ff', '#f78166'];
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'title-particle';
+    const size = 3 + Math.random() * 6;
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.bottom = '-10px';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDuration = (6 + Math.random() * 10) + 's';
+    p.style.animationDelay = (Math.random() * 12) + 's';
+    c.appendChild(p);
+  }
+})();
+
+// ============================================================
+// SETUP SCREEN
+// ============================================================
+function showSetup() {
+  showScreen('setup-screen');
+  const inputs = document.getElementById('player-inputs');
+  inputs.innerHTML = '';
+  // Start with 3 player inputs
+  for (let i = 0; i < 3; i++) addPlayerInput();
+}
+
+function addPlayerInput() {
+  const inputs = document.getElementById('player-inputs');
+  if (inputs.children.length >= 6) return;
+  const row = document.createElement('div');
+  row.className = 'player-input-row';
+  const num = inputs.children.length + 1;
+  row.innerHTML = `
+    <input type="text" placeholder="Player ${num}" maxlength="20" autocomplete="off">
+    <button class="remove-player" onclick="removePlayerInput(this)">&times;</button>
+  `;
+  inputs.appendChild(row);
+  updateSetupBtn();
+}
+
+function removePlayerInput(btn) {
+  const inputs = document.getElementById('player-inputs');
+  if (inputs.children.length <= 3) return;
+  btn.parentElement.remove();
+  updateSetupBtn();
+}
+
+function updateSetupBtn() {
+  const rows = document.querySelectorAll('#player-inputs .player-input-row input');
+  const names = [...rows].map(i => i.value.trim()).filter(Boolean);
+  document.getElementById('start-btn').disabled = names.length < 3;
+}
+document.addEventListener('input', e => {
+  if (e.target.closest('#player-inputs')) updateSetupBtn();
+});
+
+// ============================================================
+// CARD GENERATION
+// ============================================================
+
+/* Photo cards — real images in the same directory */
+const IMAGE_FILES = [
+  '1E8B0269-6F4A-455E-8E32-D92A80529A71.JPG',
+  '4A06414C-606A-4326-B9AF-F92E56E52264 (1).JPG',
+  '85D134AB-4E4B-47BE-AB7F-36E0E29F8533.PNG',
+  'B21DBD94-BA39-463A-A9CB-2D0B5E08CACB.JPG',
+  'DF91EC43-7970-485D-B1C5-4FFDF61A77A2 (1).PNG',
+  'IMG_6773.JPG',
+  'IMG_6944.JPG',
+  'IMG_7085.JPG'
+];
+
+/* Color palettes — each is an array of 3-5 colors with a mood */
+const PALETTES = [
+  ['#1a0a2e', '#5c2d91', '#b97de8', '#f4d896', '#ff6b6b'],  // mystic violet
+  ['#0b132b', '#1c2541', '#3a506b', '#5bc0be', '#c5e8d0'],  // deep ocean
+  ['#2d0a0a', '#8b1a1a', '#d4573b', '#f0a858', '#ffecd2'],  // ember glow
+  ['#0d1b2a', '#1b263b', '#415a77', '#778da9', '#e0e1dd'],  // steel night
+  ['#1a1a2e', '#16213e', '#0f3460', '#e94560', '#ff9a76'],  // neon abyss
+  ['#2b2d42', '#8d99ae', '#edf2f4', '#ef233c', '#d90429'],  // stark crimson
+  ['#0b0c10', '#1f2833', '#c5c6c7', '#66fcf1', '#45a29e'],  // cyber teal
+  ['#1e1e2f', '#2d2d44', '#6b4c9a', '#a855f7', '#f9cb40'],  // twilight gold
+  ['#0a0a23', '#1b2838', '#2a5298', '#4fc3f7', '#ffffff'],  // starlight
+  ['#1c0b19', '#3b1c32', '#6b2fa0', '#d4a5ff', '#ffeaa7'],  // lavender dream
+  ['#0d2818', '#04471c', '#058c42', '#16db93', '#f0f3bd'],  // enchanted forest
+  ['#1a0000', '#4a0e0e', '#8b3a3a', '#cc7a7a', '#f5deb3'],  // dried rose
+  ['#0f0f23', '#232350', '#4a4e82', '#ffd700', '#fff8dc'],   // midnight gold
+  ['#1a1423', '#2d1b4e', '#582c83', '#e040fb', '#ff80ab'],  // neon orchid
+  ['#0a1628', '#152238', '#3d5a80', '#ee6c4d', '#f7ede2'],  // warm dusk
+  ['#0d0d0d', '#2c2c2c', '#5a5a5a', '#8a8a8a', '#d4d4d4'],  // monochrome
+  ['#1b0a2a', '#3e1c5e', '#7b3fa0', '#c792ea', '#f3e5f5'],  // soft purple
+  ['#182628', '#1e4d2b', '#6a994e', '#a7c957', '#f2e8cf'],  // mossy
+  ['#1c1427', '#331d4e', '#774aa0', '#d4a4ff', '#74f0ed'],  // aurora
+  ['#201a10', '#3d2e1a', '#6e5029', '#c49a3c', '#f5e6c8'],  // antique gold
+];
+
+function generateCards(count) {
+  G.cards = {};
+  const ids = [];
+  // First cards are photo cards
+  for (let i = 0; i < IMAGE_FILES.length; i++) {
+    const id = 'card_' + i;
+    G.cards[id] = { id, isImage: true, src: IMAGE_FILES[i] };
+    ids.push(id);
+  }
+  // Remaining cards are procedurally generated
+  for (let i = IMAGE_FILES.length; i < count; i++) {
+    const id = 'card_' + i;
+    const palette = PALETTES[i % PALETTES.length];
+    const seed = i;
+    G.cards[id] = { id, isImage: false, palette, seed, type: i % 12 };
+    ids.push(id);
+  }
+  return ids;
+}
+
+/* Seeded pseudo-random for card generation */
+function seededRng(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+/* Render a card SVG based on its type and seed */
+function renderCard(card) {
+  const r = seededRng(card.seed * 7919 + 137);
+  const p = card.palette;
+  const type = card.type;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 168" preserveAspectRatio="xMidYMid slice">`;
+  svg += `<defs>`;
+  svg += `<linearGradient id="bg${card.id}" x1="0" y1="0" x2="${r()}" y2="1">`;
+  svg += `<stop offset="0%" stop-color="${p[0]}"/>`;
+  svg += `<stop offset="100%" stop-color="${p[1]}"/>`;
+  svg += `</linearGradient>`;
+  svg += `<radialGradient id="rg${card.id}" cx="${30+r()*60}%" cy="${30+r()*60}%" r="50%">`;
+  svg += `<stop offset="0%" stop-color="${p[3]}" stop-opacity="0.6"/>`;
+  svg += `<stop offset="100%" stop-color="${p[0]}" stop-opacity="0"/>`;
+  svg += `</radialGradient>`;
+  svg += `</defs>`;
+  svg += `<rect width="120" height="168" fill="url(#bg${card.id})"/>`;
+  svg += `<rect width="120" height="168" fill="url(#rg${card.id})"/>`;
+
+  switch (type) {
+    case 0: svg += cardConcentricCircles(r, p); break;
+    case 1: svg += cardSpiralLines(r, p); break;
+    case 2: svg += cardFloatingShapes(r, p); break;
+    case 3: svg += cardMoon(r, p); break;
+    case 4: svg += cardWaves(r, p); break;
+    case 5: svg += cardEye(r, p); break;
+    case 6: svg += cardStaircase(r, p); break;
+    case 7: svg += cardDotField(r, p); break;
+    case 8: svg += cardFlower(r, p); break;
+    case 9: svg += cardDoor(r, p); break;
+    case 10: svg += cardSpiral(r, p); break;
+    case 11: svg += cardCrystal(r, p); break;
+  }
+
+  svg += `</svg>`;
+  return svg;
+}
+
+function cardConcentricCircles(r, p) {
+  let s = '';
+  const cx = 40 + r() * 40, cy = 50 + r() * 68;
+  for (let i = 6; i >= 0; i--) {
+    const radius = 12 + i * (8 + r() * 6);
+    const color = p[2 + Math.floor(r() * (p.length - 2))];
+    const opacity = 0.15 + r() * 0.35;
+    s += `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="${color}" opacity="${opacity}"/>`;
+  }
+  // Add some floating dots
+  for (let i = 0; i < 12; i++) {
+    const x = r() * 120, y = r() * 168, size = 1 + r() * 3;
+    s += `<circle cx="${x}" cy="${y}" r="${size}" fill="${p[3]}" opacity="${0.2 + r() * 0.5}"/>`;
+  }
+  return s;
+}
+
+function cardSpiralLines(r, p) {
+  let s = '';
+  const cx = 60, cy = 84;
+  for (let j = 0; j < 3; j++) {
+    let d = 'M ';
+    const ox = (r() - 0.5) * 30, oy = (r() - 0.5) * 40;
+    for (let i = 0; i < 60; i++) {
+      const angle = i * 0.2 + j * 2.09;
+      const radius = 3 + i * (0.8 + r() * 0.3);
+      const x = cx + ox + Math.cos(angle) * radius;
+      const y = cy + oy + Math.sin(angle) * radius;
+      d += `${x.toFixed(1)} ${y.toFixed(1)} `;
+      if (i === 0) d += 'L ';
+    }
+    s += `<path d="${d}" fill="none" stroke="${p[2 + j % 3]}" stroke-width="${1 + r()}" opacity="${0.4 + r() * 0.4}" stroke-linecap="round"/>`;
+  }
+  return s;
+}
+
+function cardFloatingShapes(r, p) {
+  let s = '';
+  for (let i = 0; i < 8; i++) {
+    const x = r() * 120, y = r() * 168;
+    const size = 8 + r() * 25;
+    const color = p[1 + Math.floor(r() * (p.length - 1))];
+    const opacity = 0.15 + r() * 0.4;
+    const rot = r() * 360;
+    if (r() > 0.5) {
+      s += `<rect x="${x - size/2}" y="${y - size/2}" width="${size}" height="${size}" fill="${color}" opacity="${opacity}" transform="rotate(${rot} ${x} ${y})" rx="${r() * size * 0.3}"/>`;
+    } else {
+      const points = [];
+      const sides = 3 + Math.floor(r() * 4);
+      for (let j = 0; j < sides; j++) {
+        const a = (j / sides) * Math.PI * 2 + rot * Math.PI / 180;
+        points.push(`${x + Math.cos(a) * size * 0.6},${y + Math.sin(a) * size * 0.6}`);
+      }
+      s += `<polygon points="${points.join(' ')}" fill="${color}" opacity="${opacity}"/>`;
+    }
+  }
+  return s;
+}
+
+function cardMoon(r, p) {
+  let s = '';
+  const cx = 35 + r() * 50, cy = 30 + r() * 40;
+  const moonR = 18 + r() * 14;
+  const offset = 8 + r() * 10;
+  // Moon crescent
+  s += `<circle cx="${cx}" cy="${cy}" r="${moonR}" fill="${p[3]}"/>`;
+  s += `<circle cx="${cx + offset}" cy="${cy - offset * 0.5}" r="${moonR * 0.85}" fill="${p[0]}"/>`;
+  // Glow
+  s += `<circle cx="${cx}" cy="${cy}" r="${moonR * 2}" fill="${p[3]}" opacity="0.08"/>`;
+  // Stars
+  for (let i = 0; i < 20; i++) {
+    const x = r() * 120, y = r() * 168, sz = 0.5 + r() * 2;
+    s += `<circle cx="${x}" cy="${y}" r="${sz}" fill="${p[4] || p[3]}" opacity="${0.3 + r() * 0.6}"/>`;
+  }
+  // Horizon line
+  const hy = 120 + r() * 30;
+  s += `<line x1="0" y1="${hy}" x2="120" y2="${hy}" stroke="${p[2]}" stroke-width="0.5" opacity="0.3"/>`;
+  // Reflection
+  s += `<ellipse cx="${cx}" cy="${hy + 15}" rx="${moonR * 0.6}" ry="${4 + r() * 6}" fill="${p[3]}" opacity="0.15"/>`;
+  return s;
+}
+
+function cardWaves(r, p) {
+  let s = '';
+  for (let w = 0; w < 6; w++) {
+    const y = 20 + w * 26 + r() * 10;
+    let d = `M -10 ${y}`;
+    for (let x = 0; x <= 140; x += 10) {
+      const cy = y + Math.sin(x * 0.05 + w * 1.2 + r() * 3) * (8 + r() * 12);
+      d += ` Q ${x - 5} ${cy - 5 * (r() - 0.5)}, ${x} ${cy}`;
+    }
+    d += ` L 130 180 L -10 180 Z`;
+    const color = p[1 + w % (p.length - 1)];
+    s += `<path d="${d}" fill="${color}" opacity="${0.15 + r() * 0.25}"/>`;
+  }
+  // Foam dots
+  for (let i = 0; i < 15; i++) {
+    s += `<circle cx="${r() * 120}" cy="${r() * 168}" r="${0.5 + r() * 1.5}" fill="${p[4] || p[3]}" opacity="${0.2 + r() * 0.3}"/>`;
+  }
+  return s;
+}
+
+function cardEye(r, p) {
+  let s = '';
+  const cx = 60, cy = 70 + r() * 28;
+  const ew = 40 + r() * 15, eh = 18 + r() * 10;
+  // Outer glow
+  s += `<ellipse cx="${cx}" cy="${cy}" rx="${ew + 10}" ry="${eh + 10}" fill="${p[2]}" opacity="0.1"/>`;
+  // Eye shape
+  s += `<ellipse cx="${cx}" cy="${cy}" rx="${ew}" ry="${eh}" fill="${p[1]}" stroke="${p[2]}" stroke-width="1.5" opacity="0.7"/>`;
+  // Iris
+  const irisR = eh * 0.7;
+  s += `<circle cx="${cx}" cy="${cy}" r="${irisR}" fill="${p[3]}"/>`;
+  s += `<circle cx="${cx}" cy="${cy}" r="${irisR * 0.5}" fill="${p[4] || p[2]}"/>`;
+  // Pupil
+  s += `<circle cx="${cx}" cy="${cy}" r="${irisR * 0.22}" fill="${p[0]}"/>`;
+  // Highlight
+  s += `<circle cx="${cx + irisR * 0.25}" cy="${cy - irisR * 0.25}" r="${irisR * 0.12}" fill="white" opacity="0.7"/>`;
+  // Rays
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2;
+    const len = ew + 10 + r() * 20;
+    s += `<line x1="${cx + Math.cos(angle) * ew}" y1="${cy + Math.sin(angle) * eh}" x2="${cx + Math.cos(angle) * len}" y2="${cy + Math.sin(angle) * len}" stroke="${p[3]}" stroke-width="0.5" opacity="${0.2 + r() * 0.3}"/>`;
+  }
+  return s;
+}
+
+function cardStaircase(r, p) {
+  let s = '';
+  const startX = 15 + r() * 20, startY = 150;
+  const stepW = 12 + r() * 8, stepH = 10 + r() * 5;
+  const steps = 7 + Math.floor(r() * 4);
+  const goRight = r() > 0.5;
+  for (let i = 0; i < steps; i++) {
+    const x = goRight ? startX + i * stepW : startX + (steps - 1 - i) * stepW;
+    const y = startY - i * stepH;
+    const opacity = 0.3 + (i / steps) * 0.5;
+    s += `<rect x="${x}" y="${y}" width="${stepW + 2}" height="${stepH + 2}" fill="${p[2]}" opacity="${opacity}" rx="1"/>`;
+  }
+  // Light at top
+  const topX = goRight ? startX + (steps - 0.5) * stepW : startX + 0.5 * stepW;
+  const topY = startY - steps * stepH;
+  s += `<circle cx="${topX}" cy="${topY - 10}" r="${15 + r() * 10}" fill="${p[3]}" opacity="0.2"/>`;
+  s += `<circle cx="${topX}" cy="${topY - 10}" r="${4 + r() * 3}" fill="${p[4] || p[3]}" opacity="0.7"/>`;
+  // Ambient particles
+  for (let i = 0; i < 10; i++) {
+    s += `<circle cx="${r() * 120}" cy="${r() * 168}" r="${0.5 + r() * 1.5}" fill="${p[3]}" opacity="${0.1 + r() * 0.3}"/>`;
+  }
+  return s;
+}
+
+function cardDotField(r, p) {
+  let s = '';
+  const cx = 60 + (r() - 0.5) * 40;
+  const cy = 84 + (r() - 0.5) * 40;
+  for (let i = 0; i < 80; i++) {
+    const angle = r() * Math.PI * 2;
+    const dist = r() * r() * 70;
+    const x = cx + Math.cos(angle) * dist;
+    const y = cy + Math.sin(angle) * dist;
+    const size = 0.5 + r() * 3;
+    const color = p[1 + Math.floor(r() * (p.length - 1))];
+    s += `<circle cx="${x}" cy="${y}" r="${size}" fill="${color}" opacity="${0.3 + r() * 0.6}"/>`;
+  }
+  return s;
+}
+
+function cardFlower(r, p) {
+  let s = '';
+  const cx = 50 + r() * 20, cy = 70 + r() * 30;
+  const petals = 5 + Math.floor(r() * 4);
+  const petalR = 14 + r() * 10;
+  for (let i = 0; i < petals; i++) {
+    const angle = (i / petals) * Math.PI * 2 + r() * 0.3;
+    const px = cx + Math.cos(angle) * petalR;
+    const py = cy + Math.sin(angle) * petalR;
+    s += `<ellipse cx="${px}" cy="${py}" rx="${petalR * 0.6}" ry="${petalR * 0.3}" fill="${p[2 + (i % 2)]}" opacity="${0.3 + r() * 0.3}" transform="rotate(${angle * 180 / Math.PI + 90} ${px} ${py})"/>`;
+  }
+  // Center
+  s += `<circle cx="${cx}" cy="${cy}" r="${5 + r() * 4}" fill="${p[4] || p[3]}" opacity="0.8"/>`;
+  // Stem
+  s += `<line x1="${cx}" y1="${cy + petalR}" x2="${cx - 5 + r() * 10}" y2="168" stroke="${p[2]}" stroke-width="1.5" opacity="0.3"/>`;
+  // Small dots
+  for (let i = 0; i < 8; i++) {
+    s += `<circle cx="${r() * 120}" cy="${r() * 168}" r="${0.8 + r()}" fill="${p[3]}" opacity="${0.15 + r() * 0.25}"/>`;
+  }
+  return s;
+}
+
+function cardDoor(r, p) {
+  let s = '';
+  const dx = 35 + r() * 15, dy = 35 + r() * 15;
+  const dw = 35 + r() * 15, dh = 65 + r() * 20;
+  // Door frame
+  s += `<rect x="${dx - 3}" y="${dy - 3}" width="${dw + 6}" height="${dh + 6}" fill="${p[2]}" opacity="0.5" rx="2"/>`;
+  // Door opening — inner light
+  s += `<rect x="${dx}" y="${dy}" width="${dw}" height="${dh}" fill="${p[3]}" opacity="0.3" rx="1"/>`;
+  // Light spill
+  const lightPath = `M ${dx} ${dy + dh} L ${dx - 15} ${dy + dh + 30} L ${dx + dw + 15} ${dy + dh + 30} L ${dx + dw} ${dy + dh} Z`;
+  s += `<path d="${lightPath}" fill="${p[3]}" opacity="0.1"/>`;
+  // Knob
+  s += `<circle cx="${dx + dw - 8}" cy="${dy + dh * 0.5}" r="2.5" fill="${p[4] || p[3]}" opacity="0.6"/>`;
+  // Particles through door
+  for (let i = 0; i < 10; i++) {
+    const x = dx + r() * dw, y = dy + r() * dh;
+    s += `<circle cx="${x}" cy="${y}" r="${0.5 + r() * 1.5}" fill="${p[4] || p[3]}" opacity="${0.3 + r() * 0.5}"/>`;
+  }
+  return s;
+}
+
+function cardSpiral(r, p) {
+  let s = '';
+  const cx = 55 + r() * 10, cy = 80 + r() * 10;
+  let d = `M ${cx} ${cy}`;
+  for (let i = 1; i < 80; i++) {
+    const angle = i * 0.15;
+    const radius = i * (0.7 + r() * 0.2);
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }
+  s += `<path d="${d}" fill="none" stroke="${p[3]}" stroke-width="${1.5 + r()}" opacity="0.5" stroke-linecap="round"/>`;
+  // Inner glow
+  s += `<circle cx="${cx}" cy="${cy}" r="${8 + r() * 6}" fill="${p[3]}" opacity="0.2"/>`;
+  s += `<circle cx="${cx}" cy="${cy}" r="${3}" fill="${p[4] || p[3]}" opacity="0.7"/>`;
+  // Scatter
+  for (let i = 0; i < 6; i++) {
+    s += `<circle cx="${r() * 120}" cy="${r() * 168}" r="${1 + r() * 2}" fill="${p[2]}" opacity="${0.2 + r() * 0.2}"/>`;
+  }
+  return s;
+}
+
+function cardCrystal(r, p) {
+  let s = '';
+  const numCrystals = 3 + Math.floor(r() * 3);
+  for (let c = 0; c < numCrystals; c++) {
+    const bx = 15 + r() * 80, by = 40 + r() * 90;
+    const w = 8 + r() * 12, h = 25 + r() * 35;
+    const points = [
+      `${bx},${by - h * 0.5}`,
+      `${bx + w * 0.5},${by}`,
+      `${bx + w * 0.3},${by + h * 0.5}`,
+      `${bx - w * 0.3},${by + h * 0.5}`,
+      `${bx - w * 0.5},${by}`
+    ];
+    const color = p[2 + Math.floor(r() * (p.length - 2))];
+    s += `<polygon points="${points.join(' ')}" fill="${color}" opacity="${0.25 + r() * 0.3}" stroke="${color}" stroke-width="0.5"/>`;
+    // Internal facet line
+    s += `<line x1="${bx}" y1="${by - h * 0.5}" x2="${bx}" y2="${by + h * 0.5}" stroke="${p[4] || p[3]}" stroke-width="0.5" opacity="0.2"/>`;
+  }
+  // Sparkles
+  for (let i = 0; i < 10; i++) {
+    const x = r() * 120, y = r() * 168, sz = 0.5 + r() * 2;
+    s += `<circle cx="${x}" cy="${y}" r="${sz}" fill="${p[4] || p[3]}" opacity="${0.2 + r() * 0.4}"/>`;
+  }
+  return s;
+}
+
+/* Create a card DOM element */
+function createCardElement(cardId, opts = {}) {
+  const card = G.cards[cardId];
+  const div = document.createElement('div');
+  div.className = 'card-container';
+  if (opts.disabled) div.classList.add('disabled');
+  div.dataset.cardId = cardId;
+  if (card.isImage) {
+    const img = document.createElement('img');
+    img.src = card.src;
+    img.draggable = false;
+    div.appendChild(img);
+  } else {
+    div.innerHTML = renderCard(card);
+  }
+  if (opts.label) {
+    const lbl = document.createElement('span');
+    lbl.className = 'card-number';
+    lbl.textContent = opts.label;
+    div.appendChild(lbl);
+  }
+  return div;
+}
+
+// ============================================================
+// START GAME
+// ============================================================
+function startGame() {
+  const rows = document.querySelectorAll('#player-inputs .player-input-row input');
+  const names = [...rows].map(i => i.value.trim()).filter(Boolean);
+  if (names.length < 3) return;
+
+  // Initialize players
+  G.players = names.map(name => ({ name, score: 0, hand: [] }));
+  G.round = 0;
+  G.storytellerIdx = 0;
+  G.gameOver = false;
+
+  // Generate deck — 60 unique cards
+  const allIds = generateCards(60);
+  G.deck = shuffle([...allIds]);
+
+  // Deal 6 cards to each player
+  for (const player of G.players) {
+    player.hand = [];
+    for (let i = 0; i < 6; i++) {
+      if (G.deck.length > 0) player.hand.push(G.deck.pop());
+    }
+  }
+
+  startRound();
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ============================================================
+// ROUND FLOW
+// ============================================================
+function startRound() {
+  G.round++;
+  G.storytellerCard = null;
+  G.clue = '';
+  G.contributions = [];
+  G.votes = [];
+  G.shuffledPool = [];
+  G.selectedCard = null;
+
+  // Check if enough cards to play
+  const cardsNeeded = G.players.length; // each player plays 1 card
+  const totalInHands = G.players.reduce((sum, p) => sum + p.hand.length, 0);
+  if (totalInHands < cardsNeeded) {
+    endGame();
+    return;
+  }
+
+  // Show handoff for storyteller
+  showHandoff(
+    G.players[G.storytellerIdx].name,
+    'You are the Storyteller',
+    'Look at your hand and choose a card. Then give the others a clue — a word, phrase, or feeling.',
+    'storyteller',
+    () => showStoryteller()
+  );
+}
+
+// ============================================================
+// HANDOFF
+// ============================================================
+let handoffCallback = null;
+
+function showHandoff(name, phaseText, roleText, phase, callback) {
+  document.getElementById('handoff-phase').textContent = phaseText;
+  document.getElementById('handoff-name').textContent = name;
+  document.getElementById('handoff-role').textContent = roleText;
+  handoffCallback = callback;
+  showScreen('handoff-screen');
+}
+
+function handoffContinue() {
+  if (handoffCallback) handoffCallback();
+}
+
+// ============================================================
+// STORYTELLER PHASE
+// ============================================================
+function showStoryteller() {
+  G.selectedCard = null;
+  const hand = document.getElementById('storyteller-hand');
+  hand.innerHTML = '';
+  const player = G.players[G.storytellerIdx];
+  player.hand.forEach((cardId) => {
+    const el = createCardElement(cardId);
+    el.addEventListener('click', () => selectCard(el, 'storyteller'));
+    hand.appendChild(el);
+  });
+  document.getElementById('clue-input').value = '';
+  document.getElementById('submit-clue-btn').disabled = true;
+  showScreen('storyteller-screen');
+}
+
+function selectCard(el, context) {
+  const container = el.parentElement;
+  container.querySelectorAll('.card-container').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  G.selectedCard = el.dataset.cardId;
+
+  if (context === 'storyteller') {
+    updateClueBtn();
+  } else if (context === 'contribute') {
+    document.getElementById('submit-contribute-btn').disabled = false;
+  } else if (context === 'vote') {
+    document.getElementById('submit-vote-btn').disabled = false;
+  }
+}
+
+function updateClueBtn() {
+  const hasCard = G.selectedCard !== null;
+  const hasClue = document.getElementById('clue-input').value.trim().length > 0;
+  document.getElementById('submit-clue-btn').disabled = !(hasCard && hasClue);
+}
+document.addEventListener('input', e => {
+  if (e.target.id === 'clue-input') updateClueBtn();
+});
+
+function submitClue() {
+  if (!G.selectedCard) return;
+  const clue = document.getElementById('clue-input').value.trim();
+  if (!clue) return;
+
+  G.storytellerCard = G.selectedCard;
+  G.clue = clue;
+
+  // Remove card from storyteller's hand
+  const player = G.players[G.storytellerIdx];
+  player.hand = player.hand.filter(c => c !== G.storytellerCard);
+
+  G.contributions.push({ playerIdx: G.storytellerIdx, cardId: G.storytellerCard });
+
+  // Start contribute phase
+  G.currentContributor = 0;
+  nextContributor();
+}
+
+// ============================================================
+// CONTRIBUTE PHASE
+// ============================================================
+function nextContributor() {
+  // Find next non-storyteller player
+  while (G.currentContributor < G.players.length) {
+    if (G.currentContributor !== G.storytellerIdx) break;
+    G.currentContributor++;
+  }
+  if (G.currentContributor >= G.players.length) {
+    // All contributors done — move to voting
+    startVoting();
+    return;
+  }
+
+  const player = G.players[G.currentContributor];
+  showHandoff(
+    player.name,
+    'Choose a Bluff',
+    `Read the clue and pick a card from your hand that could match it.`,
+    'contribute',
+    () => showContribute()
+  );
+}
+
+function showContribute() {
+  G.selectedCard = null;
+  document.getElementById('contribute-clue').textContent = `"${G.clue}"`;
+  const hand = document.getElementById('contribute-hand');
+  hand.innerHTML = '';
+  const player = G.players[G.currentContributor];
+  player.hand.forEach(cardId => {
+    const el = createCardElement(cardId);
+    el.addEventListener('click', () => selectCard(el, 'contribute'));
+    hand.appendChild(el);
+  });
+  document.getElementById('submit-contribute-btn').disabled = true;
+  showScreen('contribute-screen');
+}
+
+function submitContribute() {
+  if (!G.selectedCard) return;
+
+  const playerIdx = G.currentContributor;
+  const cardId = G.selectedCard;
+
+  // Remove card from player's hand
+  G.players[playerIdx].hand = G.players[playerIdx].hand.filter(c => c !== cardId);
+  G.contributions.push({ playerIdx, cardId });
+
+  G.currentContributor++;
+  nextContributor();
+}
+
+// ============================================================
+// VOTING PHASE
+// ============================================================
+function startVoting() {
+  // Shuffle contributed cards
+  G.shuffledPool = shuffle([...G.contributions]);
+  G.currentVoter = 0;
+  nextVoter();
+}
+
+function nextVoter() {
+  // Find next non-storyteller player
+  while (G.currentVoter < G.players.length) {
+    if (G.currentVoter !== G.storytellerIdx) break;
+    G.currentVoter++;
+  }
+  if (G.currentVoter >= G.players.length) {
+    // All votes in — show results
+    showResults();
+    return;
+  }
+
+  const player = G.players[G.currentVoter];
+  showHandoff(
+    player.name,
+    'Time to Vote',
+    `Look at the cards and vote for the one you think is the storyteller's. You cannot vote for your own card.`,
+    'vote',
+    () => showVoting()
+  );
+}
+
+function showVoting() {
+  G.selectedCard = null;
+  document.getElementById('voter-name').textContent = G.players[G.currentVoter].name;
+  document.getElementById('voting-clue').textContent = `"${G.clue}"`;
+  const grid = document.getElementById('voting-grid');
+  grid.innerHTML = '';
+
+  // Find this voter's card to disable it
+  const voterCard = G.contributions.find(c => c.playerIdx === G.currentVoter)?.cardId;
+
+  G.shuffledPool.forEach((entry, idx) => {
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+    const el = createCardElement(entry.cardId, {
+      disabled: entry.cardId === voterCard,
+      label: String(idx + 1)
+    });
+    el.addEventListener('click', () => selectCard(el, 'vote'));
+    wrapper.appendChild(el);
+    grid.appendChild(wrapper);
+  });
+
+  document.getElementById('submit-vote-btn').disabled = true;
+  showScreen('voting-screen');
+}
+
+function submitVote() {
+  if (!G.selectedCard) return;
+  G.votes.push({ voterIdx: G.currentVoter, cardId: G.selectedCard });
+  G.currentVoter++;
+  nextVoter();
+}
+
+// ============================================================
+// RESULTS & SCORING
+// ============================================================
+function showResults() {
+  // Calculate scores
+  const roundScores = {};
+  G.players.forEach((_, i) => roundScores[i] = 0);
+
+  const storytellerCardId = G.storytellerCard;
+  const nonStorytellers = G.players.map((_, i) => i).filter(i => i !== G.storytellerIdx);
+  const correctVoters = G.votes.filter(v => v.cardId === storytellerCardId);
+  const allFound = correctVoters.length === nonStorytellers.length;
+  const noneFound = correctVoters.length === 0;
+
+  if (allFound || noneFound) {
+    // Storyteller gets 0, everyone else gets 2
+    nonStorytellers.forEach(i => roundScores[i] += 2);
+  } else {
+    // Storyteller gets 3, correct guessers get 3
+    roundScores[G.storytellerIdx] += 3;
+    correctVoters.forEach(v => roundScores[v.voterIdx] += 3);
+  }
+
+  // Bonus: 1 point per vote on your bluff card (non-storyteller)
+  nonStorytellers.forEach(ownerIdx => {
+    const ownerCard = G.contributions.find(c => c.playerIdx === ownerIdx)?.cardId;
+    if (!ownerCard) return;
+    const votesOnThis = G.votes.filter(v => v.cardId === ownerCard).length;
+    roundScores[ownerIdx] += votesOnThis;
+  });
+
+  // Apply scores
+  G.players.forEach((player, i) => {
+    player.score += roundScores[i];
+  });
+
+  // Build results UI
+  document.getElementById('results-clue').textContent = `"${G.clue}"`;
+
+  const cardsArea = document.getElementById('results-cards');
+  cardsArea.innerHTML = '';
+
+  G.shuffledPool.forEach((entry) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'result-card-wrapper';
+
+    const cardEl = createCardElement(entry.cardId);
+    cardEl.style.cursor = 'default';
+    if (entry.cardId === storytellerCardId) {
+      cardEl.classList.add('storyteller-card');
+    }
+    wrapper.appendChild(cardEl);
+
+    // Owner label
+    const ownerLabel = document.createElement('div');
+    ownerLabel.className = 'owner-label' + (entry.cardId === storytellerCardId ? ' storyteller' : '');
+    ownerLabel.textContent = G.players[entry.playerIdx].name + (entry.cardId === storytellerCardId ? ' ★' : '');
+    wrapper.appendChild(ownerLabel);
+
+    // Who voted for this
+    const voters = G.votes.filter(v => v.cardId === entry.cardId).map(v => G.players[v.voterIdx].name);
+    if (voters.length > 0) {
+      const votesList = document.createElement('div');
+      votesList.className = 'votes-list';
+      votesList.textContent = 'Votes: ' + voters.join(', ');
+      wrapper.appendChild(votesList);
+    }
+
+    cardsArea.appendChild(wrapper);
+  });
+
+  // Score changes
+  const scoresDiv = document.getElementById('score-changes');
+  scoresDiv.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Points this round</div>';
+
+  // Sort by points this round descending
+  const sorted = G.players.map((p, i) => ({ name: p.name, pts: roundScores[i], total: p.score }))
+    .sort((a, b) => b.pts - a.pts);
+
+  sorted.forEach(entry => {
+    const row = document.createElement('div');
+    row.className = 'score-row';
+    row.innerHTML = `
+      <span class="name">${entry.name}</span>
+      <span class="points ${entry.pts === 0 ? 'zero' : ''}">+${entry.pts} (${entry.total})</span>
+    `;
+    scoresDiv.appendChild(row);
+  });
+
+  showScreen('results-screen');
+}
+
+// ============================================================
+// SCOREBOARD
+// ============================================================
+function showScoreboard() {
+  // Check game over
+  const maxScore = Math.max(...G.players.map(p => p.score));
+  const deckEmpty = G.deck.length === 0 && G.players.some(p => p.hand.length === 0);
+  G.gameOver = maxScore >= G.WIN_SCORE || deckEmpty;
+
+  const title = document.getElementById('scoreboard-title');
+  const banner = document.getElementById('game-over-banner');
+  const nextBtn = document.getElementById('next-round-btn');
+  const newBtn = document.getElementById('new-game-btn');
+
+  if (G.gameOver) {
+    const winner = G.players.reduce((a, b) => a.score >= b.score ? a : b);
+    title.textContent = 'Final Scores';
+    banner.style.display = 'block';
+    banner.textContent = `${winner.name} wins with ${winner.score} points!`;
+    nextBtn.style.display = 'none';
+    newBtn.style.display = 'inline-block';
+  } else {
+    title.textContent = `Scoreboard — Round ${G.round}`;
+    banner.style.display = 'none';
+    nextBtn.style.display = 'inline-block';
+    newBtn.style.display = 'none';
+  }
+
+  const table = document.getElementById('scoreboard-table');
+  table.innerHTML = '';
+
+  const sorted = [...G.players].sort((a, b) => b.score - a.score);
+  const topScore = sorted[0]?.score || 1;
+
+  sorted.forEach((player, idx) => {
+    const entry = document.createElement('div');
+    entry.className = 'scoreboard-entry' + (idx === 0 ? ' leader' : '');
+    const pct = topScore > 0 ? (player.score / Math.max(topScore, G.WIN_SCORE)) * 100 : 0;
+    entry.innerHTML = `
+      <span class="scoreboard-rank">${idx + 1}</span>
+      <span class="scoreboard-name">${player.name}</span>
+      <div class="scoreboard-bar"><div class="scoreboard-bar-fill" style="width:${pct}%"></div></div>
+      <span class="scoreboard-points">${player.score}</span>
+    `;
+    table.appendChild(entry);
+  });
+
+  showScreen('scoreboard-screen');
+}
+
+// ============================================================
+// NEXT ROUND
+// ============================================================
+function nextRound() {
+  // Rotate storyteller
+  G.storytellerIdx = (G.storytellerIdx + 1) % G.players.length;
+
+  // Refill hands to 6
+  for (const player of G.players) {
+    while (player.hand.length < 6 && G.deck.length > 0) {
+      player.hand.push(G.deck.pop());
+    }
+  }
+
+  startRound();
+}
+
+// ============================================================
+// END GAME
+// ============================================================
+function endGame() {
+  G.gameOver = true;
+  showScoreboard();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+showTitle();
+</script>
+</body>
+</html>
