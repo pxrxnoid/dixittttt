@@ -819,7 +819,7 @@ input {
   <div id="title-screen" class="screen active">
     <div class="title-particles" id="title-particles"></div>
     <button class="admin-btn" onclick="openAdmin()" title="Управление картинками">🖼</button>
-    <div class="title-logo">XAxit</div>
+    <img src="logo.png" alt="XAxit" style="max-width:260px;max-height:120px;margin-bottom:8px;">
     <div class="title-sub">игра ассоциаций</div>
     <div class="title-buttons">
       <button class="btn" onclick="showCreate()">Создать игру</button>
@@ -836,6 +836,7 @@ input {
       <button class="score-option active" data-score="32" onclick="pickScore(this)">32</button>
       <button class="score-option" data-score="54" onclick="pickScore(this)">54</button>
       <button class="score-option" data-score="67" onclick="pickScore(this)">67</button>
+      <input class="score-option" id="custom-score" type="number" min="10" max="999" placeholder="..." style="width:60px;text-align:center;border:none;" onfocus="pickCustomScore()" oninput="pickCustomScore()">
     </div>
     <button class="btn" id="create-btn" onclick="doCreate()">Создать</button>
     <button class="btn btn--secondary btn--small mt-12" onclick="showTitle()">Назад</button>
@@ -874,6 +875,10 @@ input {
       <span class="my-name" id="gh-name"></span>
     </div>
     <div class="game-body" id="game-body"></div>
+    <div id="my-hand-area" style="width:100%;flex-shrink:0;border-top:1px solid var(--text-muted);padding:8px 0 4px;">
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;text-align:center;margin-bottom:4px;">Твоя рука</div>
+      <div class="hand-area" id="my-hand" style="justify-content:center;"></div>
+    </div>
   </div>
 </div>
 
@@ -1033,9 +1038,18 @@ function showStatus(msg) {
 function pickScore(el) {
   document.querySelectorAll('.score-option').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
+  document.getElementById('custom-score').value = '';
+}
+function pickCustomScore() {
+  document.querySelectorAll('.score-option').forEach(b => b.classList.remove('active'));
+  document.getElementById('custom-score').classList.add('active');
 }
 function getSelectedScore() {
-  const active = document.querySelector('.score-option.active');
+  const customInput = document.getElementById('custom-score');
+  if (customInput.classList.contains('active') && customInput.value) {
+    return Math.max(10, parseInt(customInput.value) || 32);
+  }
+  const active = document.querySelector('button.score-option.active');
   return active ? parseInt(active.dataset.score) : 32;
 }
 
@@ -1313,6 +1327,7 @@ function hostSendState() {
     clue: HOST.clue,
     contributedCount: HOST.contributions.length - 1, // minus storyteller
     totalNonSt: HOST.players.length - 1,
+    cardsNeeded: HOST.players.length < 4 ? 2 : 1,
     votedCount: HOST.votes.length,
   };
 
@@ -1324,10 +1339,15 @@ function hostSendState() {
       state.pool = HOST.shuffledPool.map(e => e.cardId);
     }
     if (HOST.phase === 'contribute') {
-      state.alreadyContributed = HOST.contributions.some(c => c.playerIdx === idx);
+      const cardsNeeded = HOST.players.length < 4 ? 2 : 1;
+      const myContribs = HOST.contributions.filter(c => c.playerIdx === idx).length;
+      const isSt = idx === HOST.storytellerIdx;
+      state.myContribCount = isSt ? 0 : myContribs;
+      state.totalContribNeeded = (HOST.players.length - 1) * cardsNeeded;
+      state.alreadyContributed = !isSt && myContribs >= cardsNeeded;
     }
     if (HOST.phase === 'vote') {
-      state.ownCardId = HOST.contributions.find(c => c.playerIdx === idx)?.cardId;
+      state.ownCardIds = HOST.contributions.filter(c => c.playerIdx === idx).map(c => c.cardId);
       state.alreadyVoted = HOST.votes.some(v => v.voterIdx === idx);
     }
     if (HOST.phase === 'results') {
@@ -1433,15 +1453,18 @@ function hostOnStoryteller(pidx, cardId, clue) {
 function hostOnContribute(pidx, cardId) {
   if (HOST.phase !== 'contribute') return;
   if (pidx === HOST.storytellerIdx) return;
-  if (HOST.contributions.find(c => c.playerIdx === pidx)) return; // already contributed
+  const cardsNeeded = HOST.players.length < 4 ? 2 : 1;
+  const myContribs = HOST.contributions.filter(c => c.playerIdx === pidx).length;
+  if (myContribs >= cardsNeeded) return; // already contributed enough
   HOST.players[pidx].hand = HOST.players[pidx].hand.filter(c => c !== cardId);
   HOST.contributions.push({ playerIdx: pidx, cardId });
-  hostSendState(); // update progress
+  hostSendState();
   checkContributeDone();
 }
 
 function checkContributeDone() {
-  const needed = HOST.players.length; // storyteller + all others
+  const cardsNeeded = HOST.players.length < 4 ? 2 : 1;
+  const needed = 1 + (HOST.players.length - 1) * cardsNeeded; // storyteller(1) + others * cardsNeeded
   if (HOST.contributions.length >= needed) {
     HOST.shuffledPool = shuffle(HOST.contributions.map(c => ({ cardId: c.cardId, ownerIdx: c.playerIdx })));
     HOST.phase = 'vote';
@@ -1486,12 +1509,13 @@ function calculateScores() {
     correctVoters.forEach(v => scores[v.voterIdx] += 3);
   }
 
-  // Bluff bonus
+  // Bluff bonus (count votes on ALL cards contributed by each player)
   nonSt.forEach(ownerIdx => {
-    const ownerCard = HOST.contributions.find(c => c.playerIdx === ownerIdx)?.cardId;
-    if (!ownerCard) return;
-    const votesOn = HOST.votes.filter(v => v.cardId === ownerCard).length;
-    scores[ownerIdx] += votesOn;
+    const ownerCards = HOST.contributions.filter(c => c.playerIdx === ownerIdx).map(c => c.cardId);
+    ownerCards.forEach(cardId => {
+      const votesOn = HOST.votes.filter(v => v.cardId === cardId).length;
+      scores[ownerIdx] += votesOn;
+    });
   });
 
   // Apply
@@ -1559,29 +1583,83 @@ function renderGame(state) {
   if (!state || state.type !== 'state') return;
   showScreen('game-screen');
 
-  // Header
   document.getElementById('gh-round').textContent = state.round;
   document.getElementById('gh-name').textContent = state.players[state.myIdx]?.name || '';
-
-  // Scores panel
   updateScoresPanel(state);
 
   const body = document.getElementById('game-body');
   body.innerHTML = '';
 
   switch (state.phase) {
-    case 'storyteller':
-      renderStoryteller(body, state);
-      break;
-    case 'contribute':
-      renderContribute(body, state);
-      break;
-    case 'vote':
-      renderVote(body, state);
-      break;
-    case 'results':
-      renderResults(body, state);
-      break;
+    case 'storyteller': renderStoryteller(body, state); break;
+    case 'contribute': renderContribute(body, state); break;
+    case 'vote': renderVote(body, state); break;
+    case 'results': renderResults(body, state); break;
+  }
+
+  // Always render hand at the bottom
+  renderMyHand(state);
+}
+
+function renderMyHand(state) {
+  const container = document.getElementById('my-hand');
+  container.innerHTML = '';
+  if (!state.hand || state.hand.length === 0) {
+    document.getElementById('my-hand-area').style.display = 'none';
+    return;
+  }
+  document.getElementById('my-hand-area').style.display = 'block';
+  state.hand.forEach(cardId => {
+    const el = createCardElement(cardId);
+    el.style.cursor = 'default';
+    container.appendChild(el);
+  });
+}
+
+let selectedCards = [];
+
+function makeHandSelectable(state, count) {
+  selectedCard = null;
+  selectedCards = [];
+  const container = document.getElementById('my-hand');
+  container.innerHTML = '';
+  if (!state.hand) return;
+  state.hand.forEach(cardId => {
+    const el = createCardElement(cardId);
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => {
+      if (count === 1) {
+        container.querySelectorAll('.card-container').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedCard = cardId;
+        selectedCards = [cardId];
+      } else {
+        if (el.classList.contains('selected')) {
+          el.classList.remove('selected');
+          selectedCards = selectedCards.filter(c => c !== cardId);
+        } else {
+          if (selectedCards.length >= count) return;
+          el.classList.add('selected');
+          selectedCards.push(cardId);
+        }
+        selectedCard = selectedCards.length > 0 ? selectedCards[0] : null;
+      }
+      updateSubmitButtons(count);
+    });
+    container.appendChild(el);
+  });
+}
+
+function updateSubmitButtons(count) {
+  const ready = selectedCards.length >= count;
+  const clueBtn = document.getElementById('submit-clue-btn');
+  const ctBtn = document.getElementById('submit-ct-btn');
+  if (clueBtn) {
+    const clue = document.getElementById('clue-input')?.value.trim();
+    clueBtn.disabled = !(selectedCard && clue);
+  }
+  if (ctBtn) {
+    ctBtn.disabled = !ready;
   }
 }
 
@@ -1610,26 +1688,15 @@ function renderStoryteller(body, state) {
     body.innerHTML = `
       <div class="phase-label">Ты — рассказчик</div>
       <p class="text-dim text-small text-center" style="max-width:340px;">
-        Выбери карту из руки и придумай к ней ассоциацию — слово, фразу или чувство.
+        Выбери карту из руки внизу и придумай к ней ассоциацию.
       </p>
-      <div class="hand-area" id="st-hand"></div>
       <div class="clue-input-area">
         <input class="input-field" id="clue-input" type="text" placeholder="Твоя ассоциация…" maxlength="100" autocomplete="off">
         <button class="btn btn--small" id="submit-clue-btn" onclick="doSubmitClue()" disabled>Ок</button>
       </div>
     `;
     selectedCard = null;
-    const hand = document.getElementById('st-hand');
-    state.hand.forEach(cardId => {
-      const el = createCardElement(cardId);
-      el.addEventListener('click', () => {
-        hand.querySelectorAll('.card-container').forEach(c => c.classList.remove('selected'));
-        el.classList.add('selected');
-        selectedCard = cardId;
-        updateClueBtn();
-      });
-      hand.appendChild(el);
-    });
+    makeHandSelectable(state, 1);
     document.getElementById('clue-input').addEventListener('input', updateClueBtn);
   } else {
     body.innerHTML = `
@@ -1642,7 +1709,7 @@ function updateClueBtn() {
   const btn = document.getElementById('submit-clue-btn');
   if (!btn) return;
   const clue = document.getElementById('clue-input')?.value.trim();
-  btn.disabled = !(selectedCard && clue);
+  btn.disabled = !(selectedCards.length >= 1 && clue);
 }
 
 function doSubmitClue() {
@@ -1658,59 +1725,51 @@ function doSubmitClue() {
 // --- CONTRIBUTE PHASE ---
 function renderContribute(body, state) {
   const isSt = state.myIdx === state.storytellerIdx;
-  const alreadyContributed = state.contributedCount >= state.totalNonSt;
+  const needCards = state.cardsNeeded || 1;
+  const myContribCount = state.myContribCount || 0;
 
   if (isSt) {
     body.innerHTML = `
       <div class="phase-label">Ассоциация</div>
       <div class="clue-display">"${state.clue}"</div>
       <div class="waiting-msg">Игроки выбирают карты<span class="waiting-dots">...</span></div>
-      <div class="waiting-progress">${state.contributedCount} / ${state.totalNonSt}</div>
+      <div class="waiting-progress">${state.contributedCount} / ${state.totalContribNeeded}</div>
     `;
     return;
   }
 
-  // Check if already contributed (use server-sent flag)
   if (state.alreadyContributed) {
     body.innerHTML = `
       <div class="phase-label">Ассоциация</div>
       <div class="clue-display">"${state.clue}"</div>
       <div class="waiting-msg">Ожидание остальных<span class="waiting-dots">...</span></div>
-      <div class="waiting-progress">${state.contributedCount} / ${state.totalNonSt}</div>
+      <div class="waiting-progress">${state.contributedCount} / ${state.totalContribNeeded}</div>
     `;
     return;
   }
 
+  const remaining = needCards - myContribCount;
   body.innerHTML = `
     <div class="phase-label">Блеф</div>
     <div class="clue-display">"${state.clue}"</div>
     <p class="text-dim text-small text-center" style="max-width:320px;">
-      Выбери карту, которая тоже подходит под эту ассоциацию.
+      Выбери ${remaining > 1 ? remaining + ' карты' : 'карту'}, ${remaining > 1 ? 'которые подходят' : 'которая подходит'} под ассоциацию.
     </p>
-    <div class="hand-area" id="ct-hand"></div>
     <button class="btn btn--small" id="submit-ct-btn" onclick="doSubmitContribute()" disabled>Отправить</button>
   `;
   selectedCard = null;
-  const hand = document.getElementById('ct-hand');
-  state.hand.forEach(cardId => {
-    const el = createCardElement(cardId);
-    el.addEventListener('click', () => {
-      hand.querySelectorAll('.card-container').forEach(c => c.classList.remove('selected'));
-      el.classList.add('selected');
-      selectedCard = cardId;
-      document.getElementById('submit-ct-btn').disabled = false;
-    });
-    hand.appendChild(el);
-  });
+  makeHandSelectable(state, remaining);
 }
 
 function doSubmitContribute() {
-  if (!selectedCard) return;
-  if (NET.isHost) {
-    hostOnContribute(0, selectedCard);
-  } else {
-    sendToHost({ type: 'contribute', cardId: selectedCard });
-  }
+  if (selectedCards.length === 0) return;
+  selectedCards.forEach(cardId => {
+    if (NET.isHost) {
+      hostOnContribute(0, cardId);
+    } else {
+      sendToHost({ type: 'contribute', cardId });
+    }
+  });
 }
 
 // --- VOTE PHASE ---
@@ -1753,8 +1812,9 @@ function renderVote(body, state) {
   `;
   selectedCard = null;
   const grid = document.getElementById('vt-grid');
+  const ownCards = state.ownCardIds || (state.ownCardId ? [state.ownCardId] : []);
   state.pool.forEach((cardId, i) => {
-    const isOwn = cardId === state.ownCardId;
+    const isOwn = ownCards.includes(cardId);
     const el = createCardElement(cardId, { disabled: isOwn, label: String(i + 1) });
     el.addEventListener('click', () => {
       if (isOwn) return;
