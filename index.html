@@ -484,11 +484,16 @@ input {
   position: relative;
   flex-shrink: 0;
 }
+.card-container.selectable:hover {
+  transform: translateY(-10px);
+  border-color: rgba(255,255,255,0.4);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
 .card-container:active { transform: scale(0.97); }
 .card-container.selected {
   border-color: var(--gold);
-  box-shadow: 0 0 16px var(--gold-glow), 0 8px 24px rgba(0,0,0,0.4);
-  transform: translateY(-6px);
+  box-shadow: 0 0 20px var(--gold-glow), 0 0 40px var(--gold-glow), 0 10px 30px rgba(0,0,0,0.5);
+  transform: translateY(-14px) scale(1.03);
 }
 .card-container.disabled { opacity: 0.35; pointer-events: none; }
 .card-container.storyteller-card {
@@ -568,13 +573,52 @@ input {
 .score-row .points { color: var(--success); font-weight: 600; }
 .score-row .points.zero { color: var(--text-muted); }
 
-/* Game over overlay */
+/* Game over */
 .game-over-banner {
   font-family: 'Playfair Display', serif;
-  font-size: 24px;
+  font-size: 28px;
   color: var(--amber);
   text-align: center;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+}
+.game-over-sub {
+  font-size: 14px;
+  color: var(--text-dim);
+  text-align: center;
+  margin-bottom: 16px;
+}
+.leaderboard {
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto 16px;
+}
+.lb-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  background: var(--bg-surface);
+}
+.lb-entry.gold { background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,215,0,0.05)); border: 1px solid rgba(255,215,0,0.3); }
+.lb-entry.silver { background: linear-gradient(135deg, rgba(192,192,192,0.12), rgba(192,192,192,0.04)); border: 1px solid rgba(192,192,192,0.2); }
+.lb-entry.bronze { background: linear-gradient(135deg, rgba(205,127,50,0.12), rgba(205,127,50,0.04)); border: 1px solid rgba(205,127,50,0.2); }
+.lb-place {
+  font-size: 22px;
+  width: 36px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.lb-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 16px;
+}
+.lb-score {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gold);
 }
 
 /* Error / status bar */
@@ -836,7 +880,7 @@ input {
       <button class="score-option active" data-score="32" onclick="pickScore(this)">32</button>
       <button class="score-option" data-score="54" onclick="pickScore(this)">54</button>
       <button class="score-option" data-score="67" onclick="pickScore(this)">67</button>
-      <input class="score-option" id="custom-score" type="number" min="10" max="999" placeholder="своё" style="width:72px;text-align:center;border:1px solid var(--text-muted);border-radius:8px;font-size:16px;padding:4px 8px;background:var(--bg);color:var(--text);" onfocus="pickCustomScore()" oninput="pickCustomScore()">
+      <input class="score-option" id="custom-score" type="number" min="1" max="999" placeholder="своё" style="width:72px;text-align:center;border:1px solid var(--text-muted);border-radius:8px;font-size:16px;padding:4px 8px;background:var(--bg);color:var(--text);" onfocus="pickCustomScore()" oninput="pickCustomScore()">
     </div>
     <button class="btn" id="create-btn" onclick="doCreate()">Создать</button>
     <button class="btn btn--secondary btn--small mt-12" onclick="showTitle()">Назад</button>
@@ -1047,7 +1091,7 @@ function pickCustomScore() {
 function getSelectedScore() {
   const customInput = document.getElementById('custom-score');
   if (customInput.classList.contains('active') && customInput.value) {
-    return Math.max(10, parseInt(customInput.value) || 32);
+    return Math.max(1, parseInt(customInput.value) || 32);
   }
   const active = document.querySelector('button.score-option.active');
   return active ? parseInt(active.dataset.score) : 32;
@@ -1632,7 +1676,7 @@ function makeHandSelectable(state, count) {
   if (!state.hand) return;
   state.hand.forEach(cardId => {
     const el = createCardElement(cardId);
-    el.style.cursor = 'pointer';
+    el.classList.add('selectable');
     el.addEventListener('click', () => {
       if (count === 1) {
         container.querySelectorAll('.card-container').forEach(c => c.classList.remove('selected'));
@@ -1851,47 +1895,64 @@ function renderResults(body, state) {
   let html = '';
 
   if (isGameOver) {
+    // Full game over screen with leaderboard
     const winner = state.players.reduce((a, b) => a.score >= b.score ? a : b);
-    html += `<div class="game-over-banner">${winner.name} побеждает с ${winner.score} очками!</div>`;
-  }
+    const medals = ['🥇', '🥈', '🥉'];
+    const tierClass = ['gold', 'silver', 'bronze'];
+    const leaderboard = state.players.map((p, i) => ({ name: p.name, score: p.score, idx: i }))
+      .sort((a, b) => b.score - a.score);
 
-  html += `<div class="phase-label">Раскрытие</div>`;
-  html += `<div class="clue-display">"${state.clue}"</div>`;
-  html += `<div class="results-cards-area">`;
-  res.pool.forEach(entry => {
-    const isSt = entry.isStoryteller;
-    html += `<div class="result-card-wrapper">`;
-    html += `<div class="card-container${isSt ? ' storyteller-card' : ''}" style="cursor:default;">`;
-    const idx = parseInt(entry.cardId.split('_')[1]);
-    html += `<img src="${IMAGE_FILES[idx]}" draggable="false" style="width:100%;height:100%;display:block;object-fit:cover;">`;
+    html += `<div class="game-over-banner">${winner.name} побеждает!</div>`;
+    html += `<div class="game-over-sub">${winner.score} очков за ${state.round} раундов</div>`;
+    html += `<div class="leaderboard">`;
+    leaderboard.forEach((p, i) => {
+      const cls = i < 3 ? ` ${tierClass[i]}` : '';
+      const medal = i < 3 ? medals[i] : `${i + 1}.`;
+      html += `<div class="lb-entry${cls}">
+        <span class="lb-place">${medal}</span>
+        <span class="lb-name">${p.name}</span>
+        <span class="lb-score">${p.score}</span>
+      </div>`;
+    });
     html += `</div>`;
-    html += `<div class="owner-label${isSt ? ' storyteller' : ''}">${entry.ownerName}${isSt ? ' ★' : ''}</div>`;
-    if (entry.voters.length > 0) {
-      html += `<div class="votes-list">Голоса: ${entry.voters.join(', ')}</div>`;
-    }
-    html += `</div>`;
-  });
-  html += `</div>`;
-
-  // Score changes
-  html += `<div class="score-changes">`;
-  html += `<div style="color:var(--text-dim);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Очки за раунд</div>`;
-  const sorted = state.players.map((p, i) => ({ name: p.name, pts: res.roundScores[i] || 0, total: p.score }))
-    .sort((a, b) => b.pts - a.pts);
-  sorted.forEach(e => {
-    html += `<div class="score-row">
-      <span class="name">${e.name}</span>
-      <span class="points ${e.pts === 0 ? 'zero' : ''}">+${e.pts} (${e.total})</span>
-    </div>`;
-  });
-  html += `</div>`;
-
-  if (isGameOver) {
     html += `<button class="btn mt-12" onclick="showTitle()">На главную</button>`;
-  } else if (NET.isHost) {
-    html += `<button class="btn mt-12" onclick="hostNextRound()">Следующий раунд</button>`;
   } else {
-    html += `<div class="waiting-msg" style="font-size:14px;margin-top:12px;">Ожидание хоста<span class="waiting-dots">...</span></div>`;
+    html += `<div class="phase-label">Раскрытие</div>`;
+    html += `<div class="clue-display">"${state.clue}"</div>`;
+    html += `<div class="results-cards-area">`;
+    res.pool.forEach(entry => {
+      const isSt = entry.isStoryteller;
+      html += `<div class="result-card-wrapper">`;
+      html += `<div class="card-container${isSt ? ' storyteller-card' : ''}" style="cursor:default;">`;
+      const idx = parseInt(entry.cardId.split('_')[1]);
+      html += `<img src="${IMAGE_FILES[idx]}" draggable="false" style="width:100%;height:100%;display:block;object-fit:cover;">`;
+      html += `</div>`;
+      html += `<div class="owner-label${isSt ? ' storyteller' : ''}">${entry.ownerName}${isSt ? ' ★' : ''}</div>`;
+      if (entry.voters.length > 0) {
+        html += `<div class="votes-list">Голоса: ${entry.voters.join(', ')}</div>`;
+      }
+      html += `</div>`;
+    });
+    html += `</div>`;
+
+    // Score changes
+    html += `<div class="score-changes">`;
+    html += `<div style="color:var(--text-dim);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Очки за раунд</div>`;
+    const sorted = state.players.map((p, i) => ({ name: p.name, pts: res.roundScores[i] || 0, total: p.score }))
+      .sort((a, b) => b.pts - a.pts);
+    sorted.forEach(e => {
+      html += `<div class="score-row">
+        <span class="name">${e.name}</span>
+        <span class="points ${e.pts === 0 ? 'zero' : ''}">+${e.pts} (${e.total})</span>
+      </div>`;
+    });
+    html += `</div>`;
+
+    if (NET.isHost) {
+      html += `<button class="btn mt-12" onclick="hostNextRound()">Следующий раунд</button>`;
+    } else {
+      html += `<div class="waiting-msg" style="font-size:14px;margin-top:12px;">Ожидание хоста<span class="waiting-dots">...</span></div>`;
+    }
   }
 
   body.innerHTML = html;
