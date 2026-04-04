@@ -46,8 +46,8 @@ html, body {
 }
 
 h1, h2, h3 {
-  font-family: 'Playfair Display', serif;
-  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
 }
 
 button {
@@ -484,16 +484,18 @@ input {
   position: relative;
   flex-shrink: 0;
 }
-.card-container.selectable:hover {
-  transform: translateY(-10px);
-  border-color: rgba(255,255,255,0.4);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+@media (hover: hover) {
+  .card-container.selectable:hover {
+    transform: translateY(-6px);
+    border-color: rgba(255,255,255,0.3);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+  }
 }
 .card-container:active { transform: scale(0.97); }
 .card-container.selected {
   border-color: var(--gold);
-  box-shadow: 0 0 20px var(--gold-glow), 0 0 40px var(--gold-glow), 0 10px 30px rgba(0,0,0,0.5);
-  transform: translateY(-14px) scale(1.03);
+  box-shadow: 0 0 16px var(--gold-glow), 0 8px 24px rgba(0,0,0,0.4);
+  transform: translateY(-6px);
 }
 .card-container.disabled { opacity: 0.35; pointer-events: none; }
 .card-container.storyteller-card {
@@ -575,8 +577,9 @@ input {
 
 /* Game over */
 .game-over-banner {
-  font-family: 'Playfair Display', serif;
-  font-size: 28px;
+  font-family: 'Inter', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
   color: var(--amber);
   text-align: center;
   margin-bottom: 4px;
@@ -621,22 +624,27 @@ input {
   color: var(--gold);
 }
 
-/* Error / status bar */
+/* Status toast */
 .status-bar {
   position: fixed;
-  bottom: 0;
-  left: 0; right: 0;
-  background: var(--danger);
-  color: white;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--bg-surface);
+  color: var(--text-dim);
   text-align: center;
-  padding: 10px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 400;
   z-index: 200;
-  transform: translateY(100%);
-  transition: transform 0.3s;
+  border-radius: 20px;
+  border: 1px solid var(--text-muted);
+  opacity: 0;
+  transition: transform 0.3s, opacity 0.3s;
+  white-space: nowrap;
+  pointer-events: none;
 }
-.status-bar.show { transform: translateY(0); }
+.status-bar.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
 /* ============================================================
    ADMIN PANEL
@@ -646,19 +654,18 @@ input {
   top: 16px;
   right: 16px;
   z-index: 10;
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  background: var(--bg-surface);
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: transparent;
   border: 1px solid var(--text-muted);
-  color: var(--text-dim);
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.5px;
   cursor: pointer;
   transition: all var(--transition);
 }
-.admin-btn:hover { color: var(--gold); border-color: var(--gold); }
+.admin-btn:hover { color: var(--text-dim); border-color: var(--text-dim); }
 
 .admin-overlay {
   position: fixed;
@@ -862,9 +869,8 @@ input {
   <!-- TITLE -->
   <div id="title-screen" class="screen active">
     <div class="title-particles" id="title-particles"></div>
-    <button class="admin-btn" onclick="openAdmin()" title="Управление картинками">🖼</button>
-    <img src="logo.png" alt="XAxit" style="max-width:380px;max-height:180px;margin-bottom:8px;width:80%;">
-    <div class="title-sub">игра ассоциаций</div>
+    <button class="admin-btn" onclick="openAdmin()">Картинки</button>
+    <img src="logo.png" alt="XAxit" style="max-width:380px;max-height:180px;margin-bottom:16px;width:80%;">
     <div class="title-buttons">
       <button class="btn" onclick="showCreate()">Создать игру</button>
       <button class="btn btn--secondary" onclick="showJoin()">Присоединиться</button>
@@ -919,9 +925,8 @@ input {
       <span class="my-name" id="gh-name"></span>
     </div>
     <div class="game-body" id="game-body"></div>
-    <div id="my-hand-area" style="width:100%;flex-shrink:0;border-top:1px solid var(--text-muted);padding:8px 0 4px;">
-      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;text-align:center;margin-bottom:4px;">Твоя рука</div>
-      <div class="hand-area" id="my-hand" style="justify-content:center;"></div>
+    <div id="my-hand-area" style="width:100%;flex-shrink:0;border-top:1px solid var(--text-muted);padding:12px 0 4px;">
+      <div class="hand-area" id="my-hand" style="justify-content:center;overflow:visible;"></div>
     </div>
   </div>
 </div>
@@ -1808,9 +1813,7 @@ function renderStoryteller(body, state) {
   if (isSt) {
     body.innerHTML = `
       <div class="phase-label">Ты — рассказчик</div>
-      <p class="text-dim text-small text-center" style="max-width:340px;">
-        Выбери карту из руки внизу и придумай к ней ассоциацию.
-      </p>
+      <p class="text-dim text-small text-center">Выбери карту и придумай ассоциацию</p>
       <div class="clue-input-area">
         <input class="input-field" id="clue-input" type="text" placeholder="Твоя ассоциация…" maxlength="100" autocomplete="off">
         <button class="btn btn--small" id="submit-clue-btn" onclick="doSubmitClue()" disabled>Ок</button>
@@ -1873,9 +1876,7 @@ function renderContribute(body, state) {
   body.innerHTML = `
     <div class="phase-label">Блеф</div>
     <div class="clue-display">"${state.clue}"</div>
-    <p class="text-dim text-small text-center" style="max-width:320px;">
-      Выбери ${remaining > 1 ? remaining + ' карты' : 'карту'}, ${remaining > 1 ? 'которые подходят' : 'которая подходит'} под ассоциацию.
-    </p>
+    <p class="text-dim text-small text-center">Выбери ${remaining > 1 ? remaining + ' карты' : 'карту'} под ассоциацию</p>
     <button class="btn btn--small" id="submit-ct-btn" onclick="doSubmitContribute()" disabled>Отправить</button>
   `;
   selectedCard = null;
@@ -1927,7 +1928,7 @@ function renderVote(body, state) {
   body.innerHTML = `
     <div class="phase-label">Голосование</div>
     <div class="clue-display">"${state.clue}"</div>
-    <p class="text-dim text-small text-center">Какая карта принадлежит рассказчику?</p>
+    <p class="text-dim text-small text-center">Угадай карту рассказчика</p>
     <div class="voting-grid" id="vt-grid"></div>
     <button class="btn btn--small" id="submit-vt-btn" onclick="doSubmitVote()" disabled>Голосовать</button>
   `;
