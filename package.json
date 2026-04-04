@@ -2,11 +2,10 @@
   "name": "xaxit",
   "private": true,
   "scripts": {
-    "dev": "npx partykit dev",
-    "deploy": "npx partykit deploy"
+    "start": "node server.js"
   },
   "dependencies": {
-    "partykit": "^0.0.111",
-    "partysocket": "^1.0.3"
+    "express": "^4.22.1",
+    "ws": "^8.18.0"
   }
 }

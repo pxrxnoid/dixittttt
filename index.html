@@ -1135,7 +1135,7 @@ function toggleScores() {
 // ============================================================
 function connectToRoom(roomCode, onOpen) {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(`${protocol}//${location.host}/parties/main/${roomCode}`);
+  const ws = new WebSocket(`${protocol}//${location.host}/ws/${roomCode}`);
   NET.socket = ws;
   NET.roomCode = roomCode;
 
