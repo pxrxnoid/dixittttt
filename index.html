@@ -819,7 +819,7 @@ input {
   <div id="title-screen" class="screen active">
     <div class="title-particles" id="title-particles"></div>
     <button class="admin-btn" onclick="openAdmin()" title="Управление картинками">🖼</button>
-    <img src="logo.png" alt="XAxit" style="max-width:260px;max-height:120px;margin-bottom:8px;">
+    <img src="logo.png" alt="XAxit" style="max-width:380px;max-height:180px;margin-bottom:8px;width:80%;">
     <div class="title-sub">игра ассоциаций</div>
     <div class="title-buttons">
       <button class="btn" onclick="showCreate()">Создать игру</button>
@@ -836,7 +836,7 @@ input {
       <button class="score-option active" data-score="32" onclick="pickScore(this)">32</button>
       <button class="score-option" data-score="54" onclick="pickScore(this)">54</button>
       <button class="score-option" data-score="67" onclick="pickScore(this)">67</button>
-      <input class="score-option" id="custom-score" type="number" min="10" max="999" placeholder="..." style="width:60px;text-align:center;border:none;" onfocus="pickCustomScore()" oninput="pickCustomScore()">
+      <input class="score-option" id="custom-score" type="number" min="10" max="999" placeholder="своё" style="width:72px;text-align:center;border:1px solid var(--text-muted);border-radius:8px;font-size:16px;padding:4px 8px;background:var(--bg);color:var(--text);" onfocus="pickCustomScore()" oninput="pickCustomScore()">
     </div>
     <button class="btn" id="create-btn" onclick="doCreate()">Создать</button>
     <button class="btn btn--secondary btn--small mt-12" onclick="showTitle()">Назад</button>
@@ -1589,6 +1589,7 @@ function renderGame(state) {
 
   const body = document.getElementById('game-body');
   body.innerHTML = '';
+  handIsSelectable = false;
 
   switch (state.phase) {
     case 'storyteller': renderStoryteller(body, state); break;
@@ -1597,8 +1598,10 @@ function renderGame(state) {
     case 'results': renderResults(body, state); break;
   }
 
-  // Always render hand at the bottom
-  renderMyHand(state);
+  // Always render hand at the bottom (unless makeHandSelectable already set it up)
+  if (!handIsSelectable) {
+    renderMyHand(state);
+  }
 }
 
 function renderMyHand(state) {
@@ -1617,12 +1620,15 @@ function renderMyHand(state) {
 }
 
 let selectedCards = [];
+let handIsSelectable = false;
 
 function makeHandSelectable(state, count) {
+  handIsSelectable = true;
   selectedCard = null;
   selectedCards = [];
   const container = document.getElementById('my-hand');
   container.innerHTML = '';
+  document.getElementById('my-hand-area').style.display = 'block';
   if (!state.hand) return;
   state.hand.forEach(cardId => {
     const el = createCardElement(cardId);
