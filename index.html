@@ -1842,66 +1842,71 @@ function renderResults(body, state) {
 // already call hostOnStoryteller/etc. directly for host. Good.
 
 // ============================================================
-// SERVER API — SHARED IMAGE STORAGE
+// INDEXEDDB — LOCAL IMAGE STORAGE
 // ============================================================
-let imageManifest = { defaultImages: [], customImages: [] };
-let serverAvailable = false;
+let customImages = []; // [{id, dataUrl, name}]
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('xaxit-images', 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains('images')) {
+        req.result.createObjectStore('images', { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbLoadCustom() {
+  try {
+    const db = await openDB();
+    return new Promise(r => {
+      const tx = db.transaction('images', 'readonly');
+      const req = tx.objectStore('images').getAll();
+      req.onsuccess = () => r(req.result || []);
+      req.onerror = () => r([]);
+    });
+  } catch { return []; }
+}
+
+async function dbSaveCustom(dataUrl, name) {
+  const db = await openDB();
+  return new Promise(r => {
+    const tx = db.transaction('images', 'readwrite');
+    const req = tx.objectStore('images').add({ dataUrl, name, addedAt: Date.now() });
+    req.onsuccess = () => r(req.result);
+  });
+}
+
+async function dbDeleteCustom(id) {
+  const db = await openDB();
+  return new Promise(r => {
+    const tx = db.transaction('images', 'readwrite');
+    tx.objectStore('images').delete(id);
+    tx.oncomplete = () => r();
+  });
+}
+
+function getDeletedDefaults() {
+  try { return JSON.parse(localStorage.getItem('xaxit-deleted-defaults') || '[]'); }
+  catch { return []; }
+}
+
+function saveDeletedDefaults(list) {
+  localStorage.setItem('xaxit-deleted-defaults', JSON.stringify(list));
+}
+
+function rebuildImageFiles() {
+  const deleted = new Set(getDeletedDefaults());
+  const activeDefaults = DEFAULT_IMAGES.filter(f => !deleted.has(f));
+  IMAGE_FILES = [...activeDefaults, ...customImages.map(c => c.dataUrl)];
+}
 
 async function initImages() {
-  try {
-    const res = await fetch('/api/images');
-    if (!res.ok) throw new Error('not ok');
-    const data = await res.json();
-    if (!data.defaultImages) throw new Error('bad response');
-    imageManifest = data;
-    IMAGE_FILES = [...data.defaultImages, ...data.customImages];
-    serverAvailable = true;
-  } catch {
-    IMAGE_FILES = [...DEFAULT_IMAGES];
-    imageManifest = { defaultImages: [...DEFAULT_IMAGES], customImages: [] };
-    serverAvailable = false;
-  }
-}
-
-async function apiUploadImage(dataUrl, name) {
-  try {
-    const res = await fetch('/api/images', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': ADMIN_PASSWORD },
-      body: JSON.stringify({ dataUrl, name })
-    });
-    if (!res.ok) throw new Error(await res.text());
-    await initImages();
-  } catch (e) {
-    showStatus('Ошибка загрузки: ' + e.message);
-  }
-}
-
-async function apiDeleteDefault(filename) {
-  try {
-    const res = await fetch('/api/images/default/' + encodeURIComponent(filename), {
-      method: 'DELETE',
-      headers: { 'X-Admin-Password': ADMIN_PASSWORD }
-    });
-    if (!res.ok) throw new Error(await res.text());
-    await initImages();
-  } catch (e) {
-    showStatus('Ошибка удаления: ' + e.message);
-  }
-}
-
-async function apiDeleteCustom(fullPath) {
-  try {
-    const filename = fullPath.replace('custom-cards/', '');
-    const res = await fetch('/api/images/custom/' + encodeURIComponent(filename), {
-      method: 'DELETE',
-      headers: { 'X-Admin-Password': ADMIN_PASSWORD }
-    });
-    if (!res.ok) throw new Error(await res.text());
-    await initImages();
-  } catch (e) {
-    showStatus('Ошибка удаления: ' + e.message);
-  }
+  customImages = await dbLoadCustom();
+  rebuildImageFiles();
 }
 
 // ============================================================
@@ -1959,7 +1964,6 @@ function openCropModal(file) {
   };
   img.src = URL.createObjectURL(file);
 
-  // Attach drag listeners
   const container = document.getElementById('crop-container');
   container.onmousedown = cropDragStart;
   container.ontouchstart = cropDragStart;
@@ -1973,10 +1977,8 @@ function updateCropPreview() {
   const container = document.getElementById('crop-container');
   const el = container.querySelector('img');
   if (!el || !cropState.img) return;
-  const w = cropState.img.naturalWidth * cropState.scale;
-  const h = cropState.img.naturalHeight * cropState.scale;
-  el.style.width = w + 'px';
-  el.style.height = h + 'px';
+  el.style.width = (cropState.img.naturalWidth * cropState.scale) + 'px';
+  el.style.height = (cropState.img.naturalHeight * cropState.scale) + 'px';
   el.style.left = cropState.offsetX + 'px';
   el.style.top = cropState.offsetY + 'px';
 }
@@ -2044,8 +2046,9 @@ async function cropSave() {
   URL.revokeObjectURL(cropState.img.src);
   closeCropModal();
 
-  showStatus('Загрузка...');
-  await apiUploadImage(dataUrl, cropState.fileName);
+  const id = await dbSaveCustom(dataUrl, cropState.fileName);
+  customImages.push({ id, dataUrl, name: cropState.fileName });
+  rebuildImageFiles();
   renderAdminGallery();
   showStatus('Изображение добавлено!');
 }
@@ -2066,32 +2069,8 @@ function closeCropModal() {
 // ============================================================
 let adminAuthed = false;
 
-async function openAdmin() {
+function openAdmin() {
   document.getElementById('admin-overlay').classList.add('open');
-  // Re-check server availability
-  try {
-    const res = await fetch('/api/images');
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    if (!data.defaultImages) throw new Error();
-    serverAvailable = true;
-  } catch {
-    serverAvailable = false;
-  }
-  if (!serverAvailable) {
-    document.getElementById('admin-body').innerHTML = `
-      <div class="admin-password-form">
-        <p style="color:var(--danger);font-size:15px;font-weight:600;margin-bottom:12px;">Сервер не запущен!</p>
-        <p class="text-dim text-small" style="max-width:340px;text-align:center;line-height:1.6;">
-          Для управления картинками нужен сервер.<br><br>
-          Откройте терминал в папке проекта и выполните:<br>
-          <code style="background:var(--bg-deep);padding:6px 12px;border-radius:6px;display:inline-block;margin-top:8px;color:var(--gold);font-size:14px;">npm start</code><br><br>
-          Затем откройте <code style="color:var(--accent-blue);">http://localhost:3000</code>
-        </p>
-      </div>
-    `;
-    return;
-  }
   if (adminAuthed) {
     renderAdminGallery();
   } else {
@@ -2130,18 +2109,11 @@ function checkAdminPassword() {
   }
 }
 
-async function renderAdminGallery() {
-  // Re-fetch from server to get latest state
-  try {
-    const res = await fetch('/api/images');
-    imageManifest = await res.json();
-    IMAGE_FILES = [...imageManifest.defaultImages, ...imageManifest.customImages];
-  } catch {}
-
+function renderAdminGallery() {
+  const deleted = new Set(getDeletedDefaults());
+  const activeDefaults = DEFAULT_IMAGES.filter(f => !deleted.has(f));
   const body = document.getElementById('admin-body');
-  const defCount = imageManifest.defaultImages.length;
-  const custCount = imageManifest.customImages.length;
-  const total = defCount + custCount;
+  const total = activeDefaults.length + customImages.length;
 
   let html = `
     <div class="admin-upload-area" id="admin-upload-area">
@@ -2153,12 +2125,11 @@ async function renderAdminGallery() {
       </div>
       <input type="file" id="admin-file-input" accept="image/*">
     </div>
-    <div class="admin-count">Всего карт: ${total} (базовых: ${defCount}, добавленных: ${custCount})</div>
+    <div class="admin-count">Всего карт: ${total} (базовых: ${activeDefaults.length}, добавленных: ${customImages.length})</div>
     <div class="admin-gallery" id="admin-gallery">
   `;
 
-  // Default images
-  imageManifest.defaultImages.forEach((src) => {
+  activeDefaults.forEach((src) => {
     html += `
       <div class="admin-gallery-item">
         <img src="${src}" loading="lazy">
@@ -2168,14 +2139,12 @@ async function renderAdminGallery() {
     `;
   });
 
-  // Custom images
-  imageManifest.customImages.forEach((src) => {
-    const shortName = src.replace('custom-cards/', '').slice(0, 20);
+  customImages.forEach((img) => {
     html += `
       <div class="admin-gallery-item">
-        <img src="${src}" loading="lazy">
-        <button class="delete-btn" onclick="adminDeleteCustom('${src.replace(/'/g, "\\'")}')" title="Удалить">🗑</button>
-        <div class="img-badge">${shortName}</div>
+        <img src="${img.dataUrl}" loading="lazy">
+        <button class="delete-btn" onclick="adminDeleteCustom(${img.id})" title="Удалить">🗑</button>
+        <div class="img-badge">${(img.name || 'custom').slice(0, 15)}</div>
       </div>
     `;
   });
@@ -2183,10 +2152,8 @@ async function renderAdminGallery() {
   html += '</div>';
   body.innerHTML = html;
 
-  // Upload handlers
   const uploadArea = document.getElementById('admin-upload-area');
   const fileInput = document.getElementById('admin-file-input');
-
   uploadArea.addEventListener('click', () => fileInput.click());
   uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.style.borderColor = 'var(--gold)'; });
   uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = ''; });
@@ -2201,13 +2168,18 @@ async function renderAdminGallery() {
   });
 }
 
-async function adminDeleteDefault(filename) {
-  await apiDeleteDefault(filename);
+function adminDeleteDefault(filename) {
+  const deleted = getDeletedDefaults();
+  if (!deleted.includes(filename)) deleted.push(filename);
+  saveDeletedDefaults(deleted);
+  rebuildImageFiles();
   renderAdminGallery();
 }
 
-async function adminDeleteCustom(fullPath) {
-  await apiDeleteCustom(fullPath);
+async function adminDeleteCustom(id) {
+  await dbDeleteCustom(id);
+  customImages = customImages.filter(c => c.id !== id);
+  rebuildImageFiles();
   renderAdminGallery();
 }
 
