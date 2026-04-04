@@ -1038,7 +1038,42 @@ function showScreen(id) {
   }
 }
 
+function clearSession() {
+  sessionStorage.removeItem('xaxit-session');
+  history.replaceState(null, '', location.pathname);
+}
+
+function saveSession() {
+  const s = {
+    roomCode: NET.roomCode,
+    playerName: NET.myName,
+    isHost: NET.isHost,
+    myIdx: NET.myIdx,
+  };
+  if (NET.isHost) {
+    // Save full host state for host reconnect
+    s.hostState = {
+      players: HOST.players.map(p => ({ name: p.name, score: p.score, hand: [...p.hand] })),
+      allCardIds: [...HOST.allCardIds],
+      deck: [...HOST.deck],
+      phase: HOST.phase,
+      round: HOST.round,
+      winScore: HOST.winScore,
+      storytellerIdx: HOST.storytellerIdx,
+      storytellerCard: HOST.storytellerCard,
+      clue: HOST.clue,
+      contributions: HOST.contributions.map(c => ({ ...c })),
+      votes: HOST.votes.map(v => ({ ...v })),
+      shuffledPool: HOST.shuffledPool.map(e => ({ ...e })),
+      roundScores: { ...HOST.roundScores },
+      imageFiles: IMAGE_FILES,
+    };
+  }
+  sessionStorage.setItem('xaxit-session', JSON.stringify(s));
+}
+
 function showTitle() {
+  clearSession();
   if (NET.peer) { NET.peer.destroy(); NET.peer = null; }
   NET.hostConn = null;
   NET.conns = [];
@@ -1174,6 +1209,8 @@ function doCreate() {
   NET.peer.on('open', () => {
     status.style.display = 'none';
     document.getElementById('create-btn').disabled = false;
+    history.replaceState(null, '', '#' + NET.roomCode);
+    saveSession();
     showLobby();
   });
 
@@ -1257,6 +1294,7 @@ function doJoin() {
 // ============================================================
 function showLobby() {
   document.getElementById('lobby-code').textContent = NET.roomCode;
+  history.replaceState(null, '', '#' + NET.roomCode);
   updateLobbyUI();
   showScreen('lobby-screen');
 }
@@ -1298,7 +1336,7 @@ function updateLobbyUI() {
 function hostOnMessage(conn, data) {
   if (data.type === 'join') {
     if (HOST.phase !== 'lobby') {
-      conn.send({ type: 'error', msg: 'Игра уже началась' });
+      conn.send({ type: 'error', msg: 'Игра уже началас��' });
       return;
     }
     if (HOST.players.length >= 4) {
@@ -1311,6 +1349,29 @@ function hostOnMessage(conn, data) {
     conn.send({ type: 'joined', playerIdx: idx });
     hostBroadcastLobby();
     updateLobbyUI();
+    return;
+  }
+
+  // Reconnecting player — find by name, replace connection
+  if (data.type === 'rejoin') {
+    const pidx = HOST.players.findIndex(p => p.name === data.name);
+    if (pidx < 0) {
+      conn.send({ type: 'error', msg: 'Игрок не найден' });
+      return;
+    }
+    // Replace old connection
+    HOST.players[pidx].conn = conn;
+    NET.conns = NET.conns.filter(c => c.playerIdx !== pidx);
+    NET.conns.push({ conn, playerIdx: pidx });
+    conn.send({ type: 'rejoined', playerIdx: pidx, imageFiles: IMAGE_FILES });
+    showStatus(`${data.name} переподключился`);
+    // Resend current state
+    if (HOST.phase === 'lobby') {
+      hostBroadcastLobby();
+      updateLobbyUI();
+    } else {
+      hostSendState();
+    }
     return;
   }
 
@@ -1417,6 +1478,7 @@ function hostSendState() {
       p.conn?.send(state);
     }
   });
+  saveSession();
 }
 
 // ============================================================
@@ -1588,6 +1650,14 @@ function hostNextRound() {
 function clientOnMessage(data) {
   if (data.type === 'joined') {
     NET.myIdx = data.playerIdx;
+    history.replaceState(null, '', '#' + NET.roomCode);
+    saveSession();
+    return;
+  }
+  if (data.type === 'rejoined') {
+    NET.myIdx = data.playerIdx;
+    if (data.imageFiles) IMAGE_FILES = data.imageFiles;
+    saveSession();
     return;
   }
   if (data.type === 'lobby') {
@@ -1602,6 +1672,7 @@ function clientOnMessage(data) {
   }
   if (data.type === 'state') {
     localState = data;
+    saveSession();
     renderGame(data);
     return;
   }
@@ -2311,10 +2382,187 @@ async function adminDeleteCustom(id) {
 }
 
 // ============================================================
+// RECONNECT LOGIC
+// ============================================================
+function tryReconnect() {
+  const raw = sessionStorage.getItem('xaxit-session');
+  if (!raw) return false;
+  let s;
+  try { s = JSON.parse(raw); } catch { return false; }
+  if (!s.roomCode || !s.playerName) return false;
+
+  // Check URL hash matches
+  const hash = location.hash.replace('#', '').toUpperCase();
+  if (hash && hash !== s.roomCode) return false;
+
+  if (s.isHost) {
+    return tryReconnectHost(s);
+  } else {
+    return tryReconnectClient(s);
+  }
+}
+
+function tryReconnectHost(s) {
+  const hs = s.hostState;
+  if (!hs) return false;
+
+  NET.myName = s.playerName;
+  NET.isHost = true;
+  NET.roomCode = s.roomCode;
+  NET.myIdx = 0;
+
+  // Restore IMAGE_FILES
+  if (hs.imageFiles) IMAGE_FILES = hs.imageFiles;
+
+  // Restore HOST state
+  HOST.players = hs.players.map(p => ({ ...p, hand: [...p.hand], conn: null }));
+  HOST.allCardIds = [...hs.allCardIds];
+  HOST.deck = [...hs.deck];
+  HOST.phase = hs.phase;
+  HOST.round = hs.round;
+  HOST.winScore = hs.winScore;
+  HOST.storytellerIdx = hs.storytellerIdx;
+  HOST.storytellerCard = hs.storytellerCard;
+  HOST.clue = hs.clue;
+  HOST.contributions = hs.contributions.map(c => ({ ...c }));
+  HOST.votes = hs.votes.map(v => ({ ...v }));
+  HOST.shuffledPool = hs.shuffledPool.map(e => ({ ...e }));
+  HOST.roundScores = { ...hs.roundScores };
+
+  // Re-register as PeerJS host with same room code
+  const peerId = PEER_PREFIX + NET.roomCode;
+  NET.peer = new Peer(peerId, { debug: 0 });
+
+  NET.peer.on('open', () => {
+    history.replaceState(null, '', '#' + NET.roomCode);
+    showStatus('Переподключение... Ожидание игроков');
+    // Render host's own state immediately
+    if (HOST.phase === 'lobby') {
+      showLobby();
+    } else {
+      // Build host's local state
+      const base = { type: 'state', phase: HOST.phase, players: HOST.players.map(p => ({ name: p.name, score: p.score })),
+        round: HOST.round, winScore: HOST.winScore, storytellerIdx: HOST.storytellerIdx, clue: HOST.clue,
+        contributedCount: HOST.contributions.length - 1, totalNonSt: HOST.players.length - 1,
+        cardsNeeded: HOST.players.length < 4 ? 2 : 1, votedCount: HOST.votes.length };
+      const state = { ...base, myIdx: 0, hand: [...HOST.players[0].hand] };
+      if (HOST.phase === 'vote' || HOST.phase === 'results') {
+        state.pool = HOST.shuffledPool.map(e => e.cardId);
+      }
+      if (HOST.phase === 'contribute') {
+        const cardsNeeded = HOST.players.length < 4 ? 2 : 1;
+        state.myContribCount = 0;
+        state.totalContribNeeded = (HOST.players.length - 1) * cardsNeeded;
+        state.alreadyContributed = false;
+      }
+      if (HOST.phase === 'vote') {
+        state.ownCardIds = HOST.contributions.filter(c => c.playerIdx === 0).map(c => c.cardId);
+        state.alreadyVoted = HOST.votes.some(v => v.voterIdx === 0);
+      }
+      if (HOST.phase === 'results') {
+        state.results = {
+          storytellerCard: HOST.storytellerCard,
+          pool: HOST.shuffledPool.map(e => ({
+            cardId: e.cardId, ownerIdx: e.ownerIdx, ownerName: HOST.players[e.ownerIdx].name,
+            isStoryteller: e.cardId === HOST.storytellerCard,
+            voters: HOST.votes.filter(v => v.cardId === e.cardId).map(v => HOST.players[v.voterIdx].name)
+          })),
+          roundScores: HOST.roundScores,
+          isGameOver: HOST.players.some(p => p.score >= HOST.winScore)
+        };
+      }
+      localState = state;
+      renderGame(state);
+    }
+  });
+
+  NET.peer.on('error', (err) => {
+    if (err.type === 'unavailable-id') {
+      // Old peer not yet expired — wait and retry
+      showStatus('Ожидание освобождения комнаты...');
+      NET.peer.destroy();
+      setTimeout(() => tryReconnectHost(s), 2000);
+      return;
+    }
+    showStatus('Не удалось переподключиться');
+    clearSession();
+    showTitle();
+  });
+
+  NET.peer.on('connection', (conn) => {
+    conn.on('open', () => {
+      conn.on('data', (data) => hostOnMessage(conn, data));
+    });
+    conn.on('close', () => hostOnDisconnect(conn));
+  });
+
+  return true;
+}
+
+function tryReconnectClient(s) {
+  NET.myName = s.playerName;
+  NET.isHost = false;
+  NET.roomCode = s.roomCode;
+  NET.myIdx = s.myIdx;
+
+  showStatus('Переподключение...');
+
+  NET.peer = new Peer(undefined, { debug: 0 });
+
+  NET.peer.on('open', () => {
+    const conn = NET.peer.connect(PEER_PREFIX + s.roomCode, { reliable: true });
+    NET.hostConn = conn;
+
+    conn.on('open', () => {
+      conn.send({ type: 'rejoin', name: s.playerName });
+    });
+
+    conn.on('data', (data) => clientOnMessage(data));
+
+    conn.on('close', () => {
+      showStatus('Соединение с хостом потеряно');
+      clearSession();
+      showTitle();
+    });
+
+    // Timeout — if host is gone
+    setTimeout(() => {
+      if (!conn.open) {
+        showStatus('Хост недоступен');
+        clearSession();
+        showTitle();
+      }
+    }, 8000);
+  });
+
+  NET.peer.on('error', () => {
+    showStatus('Не удалось переподключиться');
+    clearSession();
+    showTitle();
+  });
+
+  return true;
+}
+
+// ============================================================
 // INIT
 // ============================================================
 (async () => {
   await initImages();
+
+  // Check for auto-join link: haxit.vercel.app/#ABCD
+  const hash = location.hash.replace('#', '').toUpperCase();
+
+  // Try reconnect from saved session
+  if (tryReconnect()) return;
+
+  // If URL has a room code but no session, pre-fill join screen
+  if (hash && hash.length === 4) {
+    document.getElementById('join-code').value = hash;
+    showJoin();
+    return;
+  }
+
   showTitle();
 })();
 </script>
