@@ -27,8 +27,8 @@
   --accent-rose: #f78166;
   --success: #56d364;
   --danger: #f85149;
-  --card-w: 120px;
-  --card-h: 168px;
+  --card-w: 130px;
+  --card-h: 182px;
   --radius: 12px;
   --transition: 0.3s ease;
 }
@@ -152,34 +152,53 @@ input {
   white-space: nowrap;
 }
 .gif-btn:hover { border-color: var(--gold); color: var(--gold); }
-.gif-picker {
+.gif-modal-overlay {
   display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.gif-modal-overlay.open { display: flex; }
+.gif-modal {
+  background: var(--bg-surface);
+  border-radius: 12px;
+  padding: 16px;
+  width: min(420px, 92vw);
+  max-height: 80vh;
+  display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  max-width: 400px;
+  gap: 10px;
+}
+.gif-modal-header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
 }
-.gif-picker.open { display: flex; }
+.gif-modal-header span { color: var(--gold); font-weight: 600; font-size: 15px; }
+.gif-modal-close {
+  background: none; border: none; color: var(--text-dim); font-size: 20px; cursor: pointer;
+}
 .gif-search-row {
   display: flex;
   gap: 6px;
-  width: 100%;
 }
 .gif-search-row input { flex: 1; }
 .gif-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  max-height: 200px;
   overflow-y: auto;
-  width: 100%;
+  flex: 1;
+  min-height: 0;
   scrollbar-width: thin;
   scrollbar-color: var(--text-muted) transparent;
 }
 .gif-grid img {
   width: 100%;
-  height: 80px;
+  height: 90px;
   object-fit: cover;
   border-radius: 6px;
   cursor: pointer;
@@ -187,7 +206,14 @@ input {
   transition: border-color 0.2s;
 }
 .gif-grid img:hover { border-color: var(--gold); }
-.gif-grid img.selected { border-color: var(--gold); box-shadow: 0 0 8px var(--gold-glow); }
+.gif-load-more {
+  text-align: center;
+  padding: 8px;
+}
+.gif-load-more button {
+  background: none; border: 1px solid var(--text-muted); color: var(--text-dim);
+  padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 12px;
+}
 .gif-preview {
   display: none;
   align-items: center;
@@ -414,38 +440,62 @@ input {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
+  padding: 10px 16px;
   background: rgba(0,0,0,0.3);
   flex-shrink: 0;
+  gap: 12px;
+  flex-wrap: wrap;
 }
-.game-header .round-info {
-  font-size: 13px;
-  color: var(--text-dim);
-}
-.game-header .round-info b {
-  color: var(--gold);
-  font-weight: 600;
-}
-.game-header .my-name {
-  font-size: 13px;
-  color: var(--accent-purple);
-  font-weight: 500;
-}
-.end-game-btn {
-  background: none;
-  border: 1px solid var(--text-muted);
-  color: var(--text-muted);
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  font-size: 13px;
-  cursor: pointer;
+.gh-left {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: border-color 0.2s, color 0.2s;
+  gap: 8px;
+  font-size: 13px;
+  flex-shrink: 0;
 }
-.end-game-btn:hover { border-color: #e74c3c; color: #e74c3c; }
+.gh-left .round-info { color: var(--text-dim); }
+.gh-left .round-info b { color: var(--gold); font-weight: 600; }
+.gh-left .st-name { color: var(--accent-purple); font-weight: 500; }
+.gh-timer-wrap {
+  flex: 1;
+  min-width: 60px;
+  display: flex;
+  align-items: center;
+}
+.gh-timer-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.gh-timer-fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+.gh-timer-fill.low { background: var(--danger); }
+.end-game-btn {
+  background: rgba(248,81,73,0.15);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.end-game-btn:hover { background: rgba(248,81,73,0.3); }
+@media (max-width: 480px) {
+  .gh-timer-wrap {
+    order: 10;
+    flex-basis: 100%;
+    margin-top: -4px;
+  }
+}
 
 /* Scoreboard (floating bottom-right) */
 .scores-toggle {
@@ -731,7 +781,7 @@ input {
   gap: 14px;
   justify-content: center;
   max-width: 90vw;
-  overflow-x: auto;
+  overflow: visible;
 }
 .voting-grid .card-container {
   width: 110px; min-width: 110px; height: 154px;
@@ -740,10 +790,11 @@ input {
 /* Results */
 .results-cards-area {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 16px;
   justify-content: center;
-  max-width: 600px;
+  max-width: 90vw;
+  overflow-x: auto;
 }
 .result-card-wrapper {
   display: flex;
@@ -1061,6 +1112,7 @@ input {
   :root { --card-w: 68px; --card-h: 95px; }
   .voting-grid { flex-wrap: wrap; max-width: 100%; }
   .voting-grid .card-container { width: 80px; min-width: 80px; height: 112px; }
+  .results-cards-area { flex-wrap: wrap; max-width: 100%; }
   .clue-display { font-size: 20px; }
   .hand-area { gap: 6px; padding: 8px 6px; }
   #my-hand-area { padding: 8px 0 2px !important; }
@@ -1136,9 +1188,14 @@ input {
   <!-- GAME -->
   <div id="game-screen" class="screen">
     <div class="game-header">
-      <span class="round-info">Раунд <b id="gh-round">1</b></span>
-      <span class="my-name" id="gh-name"></span>
-      <button class="end-game-btn" id="end-game-btn" onclick="doEndGame()" style="display:none;">✕</button>
+      <div class="gh-left">
+        <span class="round-info">Раунд <b id="gh-round">1</b></span>
+        <span class="st-name" id="gh-st-name"></span>
+      </div>
+      <div class="gh-timer-wrap" id="gh-timer-wrap" style="display:none;">
+        <div class="gh-timer-bar"><div class="gh-timer-fill" id="gh-timer-fill"></div></div>
+      </div>
+      <button class="end-game-btn" id="end-game-btn" onclick="doEndGame()" style="display:none;">Завершить</button>
     </div>
     <div class="game-body" id="game-body"></div>
     <div id="my-hand-area" style="width:100%;flex-shrink:0;border-top:1px solid var(--text-muted);padding:12px 0 4px;">
@@ -1161,6 +1218,21 @@ input {
   <button class="log-panel-close" onclick="toggleLog()">&times;</button>
   <div class="log-panel-title">История</div>
   <div class="log-entries" id="log-entries"></div>
+</div>
+
+<!-- GIF picker modal -->
+<div class="gif-modal-overlay" id="gif-modal" onclick="if(event.target===this)closeGifModal()">
+  <div class="gif-modal">
+    <div class="gif-modal-header">
+      <span>Выбери GIF</span>
+      <button class="gif-modal-close" onclick="closeGifModal()">&times;</button>
+    </div>
+    <div class="gif-search-row">
+      <input class="input-field" id="gif-search" type="text" placeholder="Поиск GIF…" autocomplete="off">
+      <button class="btn btn--small" onclick="searchGifs()">🔍</button>
+    </div>
+    <div class="gif-grid" id="gif-grid"></div>
+  </div>
 </div>
 
 <!-- Status bar -->
@@ -1568,6 +1640,7 @@ function onServerMessage(data) {
         && prev.alreadyContributed === data.alreadyContributed && prev.alreadyVoted === data.alreadyVoted) {
       updateScoresPanel(data);
       updateLogPanel(data);
+      updateTimer(data);
       return;
     }
     renderGame(data);
@@ -1587,14 +1660,40 @@ function doEndGame() {
   sendMsg({ type: 'endGame' });
 }
 
+function updateTimer(state) {
+  const wrap = document.getElementById('gh-timer-wrap');
+  const fill = document.getElementById('gh-timer-fill');
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  if (state.phase === 'storyteller' && state.timerRemaining != null) {
+    wrap.style.display = '';
+    const endTime = Date.now() + state.timerRemaining;
+    const total = 60000;
+    const tick = () => {
+      const left = Math.max(0, endTime - Date.now());
+      const pct = (left / total) * 100;
+      fill.style.width = pct + '%';
+      fill.classList.toggle('low', pct < 25);
+      if (left <= 0 && timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    };
+    tick();
+    timerInterval = setInterval(tick, 500);
+  } else {
+    wrap.style.display = 'none';
+    fill.style.width = '100%';
+  }
+}
+
+let timerInterval = null;
+
 function renderGame(state) {
   if (!state || state.type !== 'state') return;
   showScreen('game-screen');
 
   document.getElementById('gh-round').textContent = state.round;
-  document.getElementById('gh-name').textContent = state.players[state.myIdx]?.name || '';
-  document.getElementById('end-game-btn').style.display = NET.isCreator ? 'flex' : 'none';
+  document.getElementById('gh-st-name').textContent = state.storytellerName || '';
+  document.getElementById('end-game-btn').style.display = NET.isCreator ? 'inline-block' : 'none';
   updateScoresPanel(state);
+  updateTimer(state);
 
   const body = document.getElementById('game-body');
   body.innerHTML = '';
@@ -1672,7 +1771,7 @@ function updateSubmitButtons(count) {
   const ctBtn = document.getElementById('submit-ct-btn');
   if (clueBtn) {
     const clue = document.getElementById('clue-input')?.value.trim();
-    clueBtn.disabled = !(selectedCard && clue);
+    clueBtn.disabled = !(selectedCard && (clue || selectedGifUrl));
   }
   if (ctBtn) {
     ctBtn.disabled = !ready;
@@ -1706,26 +1805,18 @@ function renderStoryteller(body, state) {
       <p class="text-dim text-small text-center">Выбери карту и придумай ассоциацию</p>
       <div class="clue-input-area">
         <input class="input-field" id="clue-input" type="text" placeholder="Твоя ассоциация…" maxlength="100" autocomplete="off">
-        <button class="gif-btn" onclick="toggleGifPicker()">GIF</button>
+        <button class="gif-btn" onclick="openGifModal()">GIF</button>
         <button class="btn btn--small" id="submit-clue-btn" onclick="doSubmitClue()" disabled>Ок</button>
       </div>
       <div class="gif-preview" id="gif-preview">
         <img id="gif-preview-img">
         <button class="gif-remove" onclick="clearGif()">✕</button>
       </div>
-      <div class="gif-picker" id="gif-picker">
-        <div class="gif-search-row">
-          <input class="input-field" id="gif-search" type="text" placeholder="Поиск GIF…" autocomplete="off">
-          <button class="btn btn--small" onclick="searchGifs()">🔍</button>
-        </div>
-        <div class="gif-grid" id="gif-grid"></div>
-      </div>
     `;
     selectedCard = null;
     selectedGifUrl = null;
     makeHandSelectable(state, 1);
     document.getElementById('clue-input').addEventListener('input', updateClueBtn);
-    document.getElementById('gif-search').addEventListener('keydown', e => { if (e.key === 'Enter') searchGifs(); });
   } else {
     body.innerHTML = `
       <div class="waiting-msg">${stName} придумывает ассоциацию<span class="waiting-dots">...</span></div>
@@ -1749,55 +1840,82 @@ function doSubmitClue() {
   sendMsg({ type: 'storyteller', cardId: selectedCard, clue });
 }
 
-function toggleGifPicker() {
-  document.getElementById('gif-picker').classList.toggle('open');
+let gifNextPos = '';
+const TENOR_KEY = 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ';
+
+function openGifModal() {
+  document.getElementById('gif-modal').classList.add('open');
+  document.getElementById('gif-search').value = '';
+  document.getElementById('gif-grid').innerHTML = '';
+  gifNextPos = '';
+  setTimeout(() => document.getElementById('gif-search').focus(), 100);
+  document.getElementById('gif-search').addEventListener('keydown', e => { if (e.key === 'Enter') searchGifs(); }, { once: false });
 }
 
-async function searchGifs() {
+function closeGifModal() {
+  document.getElementById('gif-modal').classList.remove('open');
+}
+
+async function searchGifs(append) {
   const q = document.getElementById('gif-search').value.trim();
   if (!q) return;
   const grid = document.getElementById('gif-grid');
-  grid.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;">Загрузка...</div>';
+  if (!append) {
+    grid.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;grid-column:1/-1;">Загрузка...</div>';
+    gifNextPos = '';
+  }
   try {
-    const TENOR_KEY = 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ';
-    const res = await fetch('https://tenor.googleapis.com/v2/search?q=' + encodeURIComponent(q) + '&key=' + TENOR_KEY + '&limit=12&media_filter=tinygif,gif');
+    let url = 'https://tenor.googleapis.com/v2/search?q=' + encodeURIComponent(q) + '&key=' + TENOR_KEY + '&limit=30&media_filter=tinygif,gif';
+    if (gifNextPos) url += '&pos=' + gifNextPos;
+    const res = await fetch(url);
     const data = await res.json();
-    grid.innerHTML = '';
+    if (!append) grid.innerHTML = '';
+    // Remove old load-more
+    grid.querySelector('.gif-load-more')?.remove();
     (data.results || []).forEach(r => {
-      const url = r.media_formats?.tinygif?.url || r.media_formats?.gif?.url;
-      if (!url) return;
-      const fullUrl = r.media_formats?.gif?.url || url;
+      const thumbUrl = r.media_formats?.tinygif?.url || r.media_formats?.gif?.url;
+      if (!thumbUrl) return;
+      const fullUrl = r.media_formats?.gif?.url || thumbUrl;
       const img = document.createElement('img');
-      img.src = url;
+      img.src = thumbUrl;
       img.loading = 'lazy';
       img.addEventListener('click', () => {
-        grid.querySelectorAll('img').forEach(i => i.classList.remove('selected'));
-        img.classList.add('selected');
         selectGif(fullUrl);
       });
       grid.appendChild(img);
     });
-    if (grid.children.length === 0) grid.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Ничего не найдено</div>';
+    gifNextPos = data.next || '';
+    if (gifNextPos) {
+      const more = document.createElement('div');
+      more.className = 'gif-load-more';
+      more.style.gridColumn = '1/-1';
+      more.innerHTML = '<button onclick="searchGifs(true)">Ещё</button>';
+      grid.appendChild(more);
+    }
+    if (grid.children.length === 0) grid.innerHTML = '<div style="color:var(--text-muted);font-size:12px;grid-column:1/-1;">Ничего не найдено</div>';
   } catch {
-    grid.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Ошибка загрузки</div>';
+    if (!append) grid.innerHTML = '<div style="color:var(--text-muted);font-size:12px;grid-column:1/-1;">Ошибка загрузки</div>';
   }
 }
 
 function selectGif(url) {
   selectedGifUrl = url;
-  const preview = document.getElementById('gif-preview');
   document.getElementById('gif-preview-img').src = url;
-  preview.classList.add('visible');
-  document.getElementById('gif-picker').classList.remove('open');
-  document.getElementById('clue-input').value = '';
-  document.getElementById('clue-input').disabled = true;
+  document.getElementById('gif-preview').classList.add('visible');
+  closeGifModal();
+  const clueInput = document.getElementById('clue-input');
+  if (clueInput) {
+    clueInput.value = '';
+    clueInput.disabled = true;
+  }
   updateClueBtn();
 }
 
 function clearGif() {
   selectedGifUrl = null;
   document.getElementById('gif-preview').classList.remove('visible');
-  document.getElementById('clue-input').disabled = false;
+  const clueInput = document.getElementById('clue-input');
+  if (clueInput) clueInput.disabled = false;
   updateClueBtn();
 }
 
@@ -1877,9 +1995,16 @@ function renderVote(body, state) {
     body.innerHTML = `
       <div class="phase-label">Голосование</div>
       <div class="clue-display">${renderClue(state.clue)}</div>
-      <div class="waiting-msg">Ожидание остальных<span class="waiting-dots">...</span></div>
+      <div class="voting-grid" id="vt-grid"></div>
+      <div class="waiting-msg" style="font-size:14px;">Ожидание остальных<span class="waiting-dots">...</span></div>
       <div class="waiting-progress">${state.votedCount} / ${state.totalNonSt}</div>
     `;
+    const grid = document.getElementById('vt-grid');
+    state.pool.forEach((cardId, i) => {
+      const el = createCardElement(cardId, { label: String(i + 1) });
+      el.style.cursor = 'default';
+      grid.appendChild(el);
+    });
     return;
   }
 

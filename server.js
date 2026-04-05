@@ -35,7 +35,9 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log('Server on port ' + PORT));
 
 // ============================================================
-const HAND_SIZE = 5;
+const HAND_SIZE = 6;
+const HAND_SIZE_3P = 7;
+const STORYTELLER_TIMEOUT = 60000; // 60 seconds
 
 const BOT_NAMES = [
   'Кеша', 'Буба', 'Шарик', 'Мурзик', 'Пупок', 'Зефир', 'Бублик', 'Кекс',
@@ -89,6 +91,8 @@ class GameRoom {
     this.roundScores = {};
     this.roundLog = []; // [{round, scores: [{name, pts}]}]
     this.usedCards = new Set(); // cards played in previous rounds — avoid re-dealing
+    this.storytellerTimer = null;
+    this.storytellerDeadline = null;
   }
 
   isEmpty() { return this.conns.size === 0; }
@@ -202,6 +206,8 @@ class GameRoom {
   handleEndGame(ws) {
     if (this.getPlayerIdx(ws) !== 0) return;
     if (this.phase === 'lobby') return;
+    if (this.storytellerTimer) { clearTimeout(this.storytellerTimer); this.storytellerTimer = null; }
+    this.storytellerDeadline = null;
     this.phase = 'lobby';
     this.round = 0;
     this.roundLog = [];
@@ -213,6 +219,8 @@ class GameRoom {
   handleStoryteller(ws, data) {
     const pidx = this.getPlayerIdx(ws);
     if (this.phase !== 'storyteller' || pidx !== this.storytellerIdx) return;
+    if (this.storytellerTimer) { clearTimeout(this.storytellerTimer); this.storytellerTimer = null; }
+    this.storytellerDeadline = null;
     this.storytellerCard = data.cardId;
     this.clue = data.clue;
     this.players[pidx].hand = this.players[pidx].hand.filter(c => c !== data.cardId);
@@ -269,7 +277,8 @@ class GameRoom {
     while (dealing) {
       dealing = false;
       for (const p of this.players) {
-        if (p.hand.length < HAND_SIZE && this.deck.length > 0) {
+        const hs = this.players.length < 4 ? HAND_SIZE_3P : HAND_SIZE;
+        if (p.hand.length < hs && this.deck.length > 0) {
           p.hand.push(this.deck.pop());
           dealing = true;
         }
@@ -288,7 +297,28 @@ class GameRoom {
     this.shuffledPool = [];
     this.roundScores = {};
     this.phase = 'storyteller';
+    this.startStorytellerTimer();
     this.sendState();
+  }
+
+  startStorytellerTimer() {
+    if (this.storytellerTimer) clearTimeout(this.storytellerTimer);
+    this.storytellerDeadline = Date.now() + STORYTELLER_TIMEOUT;
+    this.storytellerTimer = setTimeout(() => {
+      if (this.phase !== 'storyteller') return;
+      // Auto-submit random card with empty clue
+      const st = this.players[this.storytellerIdx];
+      if (!st || st.hand.length === 0) return;
+      const cardId = st.hand[Math.floor(Math.random() * st.hand.length)];
+      this.storytellerCard = cardId;
+      this.clue = '...';
+      st.hand = st.hand.filter(c => c !== cardId);
+      this.contributions.push({ playerIdx: this.storytellerIdx, cardId });
+      this.phase = 'contribute';
+      this.storytellerDeadline = null;
+      this.sendState();
+      this.checkContributeDone();
+    }, STORYTELLER_TIMEOUT);
   }
 
   checkContributeDone() {
@@ -318,8 +348,10 @@ class GameRoom {
     if (correct.length === nonSt.length || correct.length === 0) {
       nonSt.forEach(i => scores[i] += 2);
     } else {
-      scores[stIdx] += 3;
-      correct.forEach(v => scores[v.voterIdx] += 3);
+      // 3-player special: if only 1 guessed, storyteller and guesser get 4 each
+      const bonus = (this.players.length === 3 && correct.length === 1) ? 4 : 3;
+      scores[stIdx] += bonus;
+      correct.forEach(v => scores[v.voterIdx] += bonus);
     }
     nonSt.forEach(oi => {
       this.contributions.filter(c => c.playerIdx === oi).forEach(c => {
@@ -411,7 +443,11 @@ class GameRoom {
       cardsNeeded, votedCount: this.votes.length,
       isCreator: idx === 0,
       roundLog: this.roundLog,
+      storytellerName: this.players[this.storytellerIdx]?.name || '',
     };
+    if (this.phase === 'storyteller' && this.storytellerDeadline) {
+      s.timerRemaining = Math.max(0, this.storytellerDeadline - Date.now());
+    }
     if (this.phase === 'vote' || this.phase === 'results')
       s.pool = this.shuffledPool.map(e => e.cardId);
     if (this.phase === 'contribute') {
