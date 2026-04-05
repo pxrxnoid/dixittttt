@@ -348,6 +348,20 @@ input {
   color: var(--accent-purple);
   font-weight: 500;
 }
+.end-game-btn {
+  background: none;
+  border: 1px solid var(--text-muted);
+  color: var(--text-muted);
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, color 0.2s;
+}
+.end-game-btn:hover { border-color: #e74c3c; color: #e74c3c; }
 
 /* Scoreboard (floating bottom-right) */
 .scores-toggle {
@@ -1036,6 +1050,7 @@ input {
     <div class="game-header">
       <span class="round-info">Раунд <b id="gh-round">1</b></span>
       <span class="my-name" id="gh-name"></span>
+      <button class="end-game-btn" id="end-game-btn" onclick="doEndGame()" style="display:none;">✕</button>
     </div>
     <div class="game-body" id="game-body"></div>
     <div id="my-hand-area" style="width:100%;flex-shrink:0;border-top:1px solid var(--text-muted);padding:12px 0 4px;">
@@ -1468,12 +1483,18 @@ function onServerMessage(data) {
 // ============================================================
 // GAME RENDERING
 // ============================================================
+function doEndGame() {
+  if (!confirm('Завершить игру?')) return;
+  sendMsg({ type: 'endGame' });
+}
+
 function renderGame(state) {
   if (!state || state.type !== 'state') return;
   showScreen('game-screen');
 
   document.getElementById('gh-round').textContent = state.round;
   document.getElementById('gh-name').textContent = state.players[state.myIdx]?.name || '';
+  document.getElementById('end-game-btn').style.display = NET.isCreator ? 'flex' : 'none';
   updateScoresPanel(state);
 
   const body = document.getElementById('game-body');

@@ -91,6 +91,7 @@ class GameRoom {
       case 'rejoin': return this.handleRejoin(ws, data);
       case 'addBot': return this.handleAddBot(ws);
       case 'startGame': return this.handleStartGame(ws);
+      case 'endGame': return this.handleEndGame(ws);
       case 'storyteller': return this.handleStoryteller(ws, data);
       case 'contribute': return this.handleContribute(ws, data);
       case 'vote': return this.handleVote(ws, data);
@@ -174,6 +175,17 @@ class GameRoom {
     this.players.forEach(p => { p.score = 0; p.hand = []; });
     this.dealHands();
     this.startRound();
+  }
+
+  handleEndGame(ws) {
+    if (this.getPlayerIdx(ws) !== 0) return;
+    if (this.phase === 'lobby') return;
+    this.phase = 'lobby';
+    this.round = 0;
+    this.roundLog = [];
+    this.players = this.players.filter(p => !p.isBot);
+    this.players.forEach(p => { p.score = 0; p.hand = []; });
+    this.broadcastLobby();
   }
 
   handleStoryteller(ws, data) {
