@@ -282,6 +282,17 @@ input {
   text-transform: uppercase;
   letter-spacing: 1px;
 }
+.player-list-item .bot-badge {
+  font-size: 12px;
+  margin-left: auto;
+}
+.player-list-item .bot-badge + .host-badge {
+  margin-left: 4px;
+}
+.btn-sm {
+  font-size: 13px;
+  padding: 8px 16px;
+}
 
 /* Score switch */
 .score-switch {
@@ -409,6 +420,102 @@ input {
 @media (min-width: 769px) {
   .scores-toggle.visible { display: none !important; }
   .scores-panel-close { display: none; }
+}
+
+/* Round log panel */
+.log-toggle {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 100;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--text-muted);
+  color: var(--text-dim);
+  font-size: 16px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+.log-toggle.visible { display: flex; }
+
+.log-panel {
+  position: fixed;
+  bottom: 16px; left: 16px;
+  width: 220px;
+  max-height: 300px;
+  background: var(--bg-surface);
+  border: 1px solid var(--text-muted);
+  border-radius: 12px;
+  z-index: 99;
+  transform: translateX(calc(-100% - 32px));
+  transition: transform 0.3s ease;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+.log-panel.open { transform: translateX(0); }
+.log-panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+.log-panel-close {
+  position: absolute;
+  top: 8px; right: 10px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 20px;
+  cursor: pointer;
+  border: none;
+}
+.log-entries {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) transparent;
+}
+.log-round {
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.log-round-header {
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-bottom: 2px;
+  display: flex;
+  justify-content: space-between;
+}
+.log-round-clue {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.log-score-line {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-dim);
+}
+.log-score-line .pts { color: var(--success); font-weight: 600; }
+.log-score-line .pts.zero { color: var(--text-muted); }
+
+@media (min-width: 769px) {
+  .log-toggle.visible { display: none !important; }
+  .log-panel-close { display: none; }
+}
+@media (max-width: 768px) {
+  .log-panel { width: 200px; max-height: 260px; }
 }
 
 /* Game body */
@@ -913,6 +1020,7 @@ input {
     <p class="text-dim text-small mt-12 mb-8">Игроки:</p>
     <div class="player-list" id="lobby-players"></div>
     <p class="text-dim text-small mt-12" id="lobby-score-label"></p>
+    <button class="btn btn-sm mt-12" id="lobby-add-bot" onclick="addBot()" style="display:none;">🤖 Добавить бота</button>
     <button class="btn mt-12" id="lobby-start-btn" onclick="doStartGame()" style="display:none;">Начать игру</button>
     <p class="text-dim text-small mt-12" id="lobby-wait" style="display:none;">Ожидание хоста...</p>
   </div>
@@ -936,6 +1044,14 @@ input {
   <button class="scores-panel-close" onclick="toggleScores()">&times;</button>
   <div class="scores-panel-title">Очки</div>
   <div id="scores-list"></div>
+</div>
+
+<!-- Round log panel -->
+<button class="log-toggle" id="log-toggle" onclick="toggleLog()">📋</button>
+<div class="log-panel" id="log-panel">
+  <button class="log-panel-close" onclick="toggleLog()">&times;</button>
+  <div class="log-panel-title">История</div>
+  <div class="log-entries" id="log-entries"></div>
 </div>
 
 <!-- Status bar -->
@@ -1008,13 +1124,20 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   const toggle = document.getElementById('scores-toggle');
   const panel = document.getElementById('scores-panel');
+  const logToggle = document.getElementById('log-toggle');
+  const logPanel = document.getElementById('log-panel');
   if (id === 'game-screen') {
     toggle.classList.add('visible');
-    // Desktop: auto-open scores panel
-    if (window.innerWidth > 768) panel.classList.add('open');
+    logToggle.classList.add('visible');
+    if (window.innerWidth > 768) {
+      panel.classList.add('open');
+      logPanel.classList.add('open');
+    }
   } else {
     toggle.classList.remove('visible');
     panel.classList.remove('open');
+    logToggle.classList.remove('visible');
+    logPanel.classList.remove('open');
   }
 }
 
@@ -1130,6 +1253,32 @@ function toggleScores() {
   document.getElementById('scores-panel').classList.toggle('open');
 }
 
+function toggleLog() {
+  document.getElementById('log-panel').classList.toggle('open');
+}
+
+function updateLogPanel(state) {
+  const log = state.roundLog;
+  if (!log || log.length === 0) return;
+  const container = document.getElementById('log-entries');
+  container.innerHTML = '';
+  log.forEach(entry => {
+    let html = `<div class="log-round">`;
+    html += `<div class="log-round-header"><span>Раунд ${entry.round}</span></div>`;
+    if (entry.clue) html += `<div class="log-round-clue">"${entry.clue}"</div>`;
+    entry.scores.forEach(s => {
+      html += `<div class="log-score-line"><span>${s.name}</span><span class="pts${s.pts === 0 ? ' zero' : ''}">+${s.pts}</span></div>`;
+    });
+    html += `</div>`;
+    container.innerHTML += html;
+  });
+  container.scrollTop = container.scrollHeight;
+}
+
+function addBot() {
+  sendMsg({ type: 'addBot' });
+}
+
 // ============================================================
 // WEBSOCKET CONNECTION
 // ============================================================
@@ -1231,6 +1380,7 @@ function updateLobbyUI() {
     item.innerHTML = `
       <span class="player-dot"></span>
       <span>${p.name}</span>
+      ${p.isBot ? '<span class="bot-badge">🤖</span>' : ''}
       ${i === 0 ? '<span class="host-badge">хост</span>' : ''}
     `;
     list.appendChild(item);
@@ -1239,13 +1389,16 @@ function updateLobbyUI() {
   const scoreLabel = document.getElementById('lobby-score-label');
   scoreLabel.textContent = `Играем до ${localState?.winScore || 32} очков`;
 
+  const addBotBtn = document.getElementById('lobby-add-bot');
   const startBtn = document.getElementById('lobby-start-btn');
   const waitMsg = document.getElementById('lobby-wait');
   if (NET.isCreator) {
+    addBotBtn.style.display = 'inline-block';
     startBtn.style.display = 'inline-block';
     startBtn.disabled = players.length < 2;
     waitMsg.style.display = 'none';
   } else {
+    addBotBtn.style.display = 'none';
     startBtn.style.display = 'none';
     waitMsg.style.display = 'block';
   }
@@ -1317,6 +1470,7 @@ function renderGame(state) {
   if (!handIsSelectable) {
     renderMyHand(state);
   }
+  updateLogPanel(state);
 }
 
 function renderMyHand(state) {

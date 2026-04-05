@@ -37,6 +37,18 @@ server.listen(PORT, () => console.log('Server on port ' + PORT));
 // ============================================================
 const HAND_SIZE = 5;
 
+const BOT_NAMES = ['Кеша', 'Буба', 'Шарик', 'Мурзик', 'Пупок', 'Зефир', 'Бублик', 'Кекс', 'Тостер', 'Пончик', 'Батон', 'Сырок'];
+const BOT_CLUES = [
+  'Красивая штука', 'Это напоминает мне детство', 'Просто вайб', 'Глубокий смысл',
+  'Эмоции и чувства', 'Когда ты дома один', 'Философия жизни', 'Необъяснимое',
+  'Сон в летнюю ночь', 'Дежавю', 'Тёплые носки', 'Понедельник утром',
+  'Мой внутренний мир', 'Загадка природы', 'Бабушкин совет', 'Мечта идиота',
+  'Путь самурая', 'Когда забыл зачем пришёл', 'Искусство быть собой',
+  'Это не то чем кажется', 'Случайность не случайна', 'Тайный знак',
+  'Вкус свободы', 'Нежданчик', 'Ветер перемен', 'Сила мысли',
+  'Запах дождя', 'Космос внутри', 'Последний кусок пиццы',
+];
+
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -64,6 +76,7 @@ class GameRoom {
     this.votes = [];
     this.shuffledPool = [];
     this.roundScores = {};
+    this.roundLog = []; // [{round, scores: [{name, pts}]}]
   }
 
   isEmpty() { return this.conns.size === 0; }
@@ -76,6 +89,7 @@ class GameRoom {
       case 'create': return this.handleCreate(ws, data);
       case 'join': return this.handleJoin(ws, data);
       case 'rejoin': return this.handleRejoin(ws, data);
+      case 'addBot': return this.handleAddBot(ws);
       case 'startGame': return this.handleStartGame(ws);
       case 'storyteller': return this.handleStoryteller(ws, data);
       case 'contribute': return this.handleContribute(ws, data);
@@ -105,6 +119,17 @@ class GameRoom {
     this.imageFiles = data.imageFiles || [];
     this.players.push({ name: data.name, score: 0, hand: [], connId: ws._connId, connected: true });
     ws.send(JSON.stringify({ type: 'joined', playerIdx: 0, roomCode: this.roomCode }));
+    this.broadcastLobby();
+  }
+
+  handleAddBot(ws) {
+    if (this.getPlayerIdx(ws) !== 0) return;
+    if (this.phase !== 'lobby') return;
+    if (this.players.length >= 8) return;
+    const usedNames = new Set(this.players.map(p => p.name));
+    const available = BOT_NAMES.filter(n => !usedNames.has(n));
+    const name = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : 'Бот' + this.players.length;
+    this.players.push({ name, score: 0, hand: [], connId: null, connected: true, isBot: true });
     this.broadcastLobby();
   }
 
@@ -260,6 +285,11 @@ class GameRoom {
     });
     this.players.forEach((p, i) => p.score += scores[i]);
     this.roundScores = scores;
+    this.roundLog.push({
+      round: this.round,
+      clue: this.clue,
+      scores: this.players.map((p, i) => ({ name: p.name, pts: scores[i] || 0 }))
+    });
   }
 
   sendState() {
@@ -267,6 +297,61 @@ class GameRoom {
       const pidx = this.players.findIndex(p => p.connId === ws._connId);
       if (pidx < 0) continue;
       try { ws.send(JSON.stringify(this.buildStateFor(pidx))); } catch {}
+    }
+    setTimeout(() => this.botTick(), 800 + Math.random() * 1200);
+  }
+
+  botTick() {
+    const bots = this.players.map((p, i) => ({ ...p, idx: i })).filter(p => p.isBot);
+    if (bots.length === 0) return;
+
+    if (this.phase === 'storyteller') {
+      const bot = bots.find(b => b.idx === this.storytellerIdx);
+      if (!bot) return;
+      const cardId = bot.hand[Math.floor(Math.random() * bot.hand.length)];
+      const clue = BOT_CLUES[Math.floor(Math.random() * BOT_CLUES.length)];
+      this.storytellerCard = cardId;
+      this.clue = clue;
+      this.players[bot.idx].hand = this.players[bot.idx].hand.filter(c => c !== cardId);
+      this.contributions.push({ playerIdx: bot.idx, cardId });
+      this.phase = 'contribute';
+      this.sendState();
+      this.checkContributeDone();
+      return;
+    }
+
+    if (this.phase === 'contribute') {
+      const cardsNeeded = this.players.length < 4 ? 2 : 1;
+      for (const bot of bots) {
+        if (bot.idx === this.storytellerIdx) continue;
+        const myContribs = this.contributions.filter(c => c.playerIdx === bot.idx).length;
+        if (myContribs >= cardsNeeded) continue;
+        const remaining = cardsNeeded - myContribs;
+        const hand = [...this.players[bot.idx].hand];
+        for (let i = 0; i < remaining && hand.length > 0; i++) {
+          const pick = hand.splice(Math.floor(Math.random() * hand.length), 1)[0];
+          this.players[bot.idx].hand = this.players[bot.idx].hand.filter(c => c !== pick);
+          this.contributions.push({ playerIdx: bot.idx, cardId: pick });
+        }
+      }
+      this.sendState();
+      this.checkContributeDone();
+      return;
+    }
+
+    if (this.phase === 'vote') {
+      for (const bot of bots) {
+        if (bot.idx === this.storytellerIdx) continue;
+        if (this.votes.find(v => v.voterIdx === bot.idx)) continue;
+        const ownCards = new Set(this.contributions.filter(c => c.playerIdx === bot.idx).map(c => c.cardId));
+        const votable = this.shuffledPool.filter(e => !ownCards.has(e.cardId));
+        if (votable.length === 0) continue;
+        const pick = votable[Math.floor(Math.random() * votable.length)];
+        this.votes.push({ voterIdx: bot.idx, cardId: pick.cardId });
+      }
+      this.sendState();
+      this.checkVoteDone();
+      return;
     }
   }
 
@@ -282,6 +367,7 @@ class GameRoom {
       totalNonSt: this.players.length - 1,
       cardsNeeded, votedCount: this.votes.length,
       isCreator: idx === 0,
+      roundLog: this.roundLog,
     };
     if (this.phase === 'vote' || this.phase === 'results')
       s.pool = this.shuffledPool.map(e => e.cardId);
@@ -314,7 +400,7 @@ class GameRoom {
 
   broadcastLobby() {
     const msg = JSON.stringify({
-      type: 'lobby', players: this.players.map(p => ({ name: p.name })),
+      type: 'lobby', players: this.players.map(p => ({ name: p.name, isBot: !!p.isBot })),
       winScore: this.winScore, roomCode: this.roomCode,
       imageFiles: this.imageFiles,
     });
