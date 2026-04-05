@@ -366,8 +366,10 @@ input {
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .scores-toggle.visible { display: flex; }
+.scores-toggle.hidden { opacity: 0; pointer-events: none; transform: scale(0.5); }
 
 .scores-panel {
   position: fixed;
@@ -439,8 +441,10 @@ input {
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .log-toggle.visible { display: flex; }
+.log-toggle.hidden { opacity: 0; pointer-events: none; transform: scale(0.5); }
 
 .log-panel {
   position: fixed;
@@ -625,10 +629,11 @@ input {
 /* Voting grid */
 .voting-grid {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 14px;
   justify-content: center;
-  max-width: 560px;
+  max-width: 90vw;
+  overflow-x: auto;
 }
 .voting-grid .card-container {
   width: 110px; min-width: 110px; height: 154px;
@@ -956,6 +961,7 @@ input {
   .title-sub { font-size: 15px; }
   .room-code { font-size: 36px; }
   :root { --card-w: 95px; --card-h: 133px; }
+  .voting-grid { flex-wrap: wrap; max-width: 100%; }
   .voting-grid .card-container { width: 90px; min-width: 90px; height: 126px; }
   .clue-display { font-size: 20px; }
 }
@@ -1250,11 +1256,17 @@ function copyCode() {
 }
 
 function toggleScores() {
-  document.getElementById('scores-panel').classList.toggle('open');
+  const panel = document.getElementById('scores-panel');
+  const btn = document.getElementById('scores-toggle');
+  panel.classList.toggle('open');
+  btn.classList.toggle('hidden', panel.classList.contains('open'));
 }
 
 function toggleLog() {
-  document.getElementById('log-panel').classList.toggle('open');
+  const panel = document.getElementById('log-panel');
+  const btn = document.getElementById('log-toggle');
+  panel.classList.toggle('open');
+  btn.classList.toggle('hidden', panel.classList.contains('open'));
 }
 
 function updateLogPanel(state) {
@@ -1432,9 +1444,18 @@ function onServerMessage(data) {
     return;
   }
   if (data.type === 'state') {
+    const prev = localState;
     localState = data;
     if (data.isCreator !== undefined) NET.isCreator = data.isCreator;
     saveSession();
+    // Skip full re-render if phase/round/counts haven't changed (avoids deselecting cards)
+    if (prev && prev.type === 'state' && prev.phase === data.phase && prev.round === data.round
+        && prev.contributedCount === data.contributedCount && prev.votedCount === data.votedCount
+        && prev.alreadyContributed === data.alreadyContributed && prev.alreadyVoted === data.alreadyVoted) {
+      updateScoresPanel(data);
+      updateLogPanel(data);
+      return;
+    }
     renderGame(data);
     return;
   }
