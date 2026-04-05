@@ -90,6 +90,7 @@ class GameRoom {
       case 'join': return this.handleJoin(ws, data);
       case 'rejoin': return this.handleRejoin(ws, data);
       case 'addBot': return this.handleAddBot(ws);
+      case 'removeBot': return this.handleRemoveBot(ws, data);
       case 'startGame': return this.handleStartGame(ws);
       case 'endGame': return this.handleEndGame(ws);
       case 'storyteller': return this.handleStoryteller(ws, data);
@@ -131,6 +132,15 @@ class GameRoom {
     const available = BOT_NAMES.filter(n => !usedNames.has(n));
     const name = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : 'Бот' + this.players.length;
     this.players.push({ name, score: 0, hand: [], connId: null, connected: true, isBot: true });
+    this.broadcastLobby();
+  }
+
+  handleRemoveBot(ws, data) {
+    if (this.getPlayerIdx(ws) !== 0) return;
+    if (this.phase !== 'lobby') return;
+    const idx = data.idx;
+    if (idx < 1 || idx >= this.players.length || !this.players[idx].isBot) return;
+    this.players.splice(idx, 1);
     this.broadcastLobby();
   }
 

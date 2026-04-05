@@ -289,6 +289,17 @@ input {
 .player-list-item .bot-badge + .host-badge {
   margin-left: 4px;
 }
+.remove-bot-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 4px;
+  margin-left: 4px;
+  transition: color 0.2s;
+}
+.remove-bot-btn:hover { color: #e74c3c; }
 .btn-sm {
   font-size: 13px;
   padding: 8px 16px;
@@ -974,14 +985,18 @@ input {
   .title-logo { font-size: 44px; }
   .title-sub { font-size: 15px; }
   .room-code { font-size: 36px; }
-  :root { --card-w: 95px; --card-h: 133px; }
+  :root { --card-w: 68px; --card-h: 95px; }
   .voting-grid { flex-wrap: wrap; max-width: 100%; }
-  .voting-grid .card-container { width: 90px; min-width: 90px; height: 126px; }
+  .voting-grid .card-container { width: 80px; min-width: 80px; height: 112px; }
   .clue-display { font-size: 20px; }
+  .hand-area { gap: 6px; padding: 8px 6px; }
+  #my-hand-area { padding: 8px 0 2px !important; }
+  .game-body { gap: 8px; padding: 8px 0; }
+  .phase-label { font-size: 11px; }
 }
 @media (max-width: 360px) {
-  :root { --card-w: 80px; --card-h: 112px; }
-  .voting-grid .card-container { width: 78px; min-width: 78px; height: 109px; }
+  :root { --card-w: 58px; --card-h: 81px; }
+  .voting-grid .card-container { width: 70px; min-width: 70px; height: 98px; }
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -1306,6 +1321,10 @@ function addBot() {
   sendMsg({ type: 'addBot' });
 }
 
+function removeBot(idx) {
+  sendMsg({ type: 'removeBot', idx });
+}
+
 // ============================================================
 // WEBSOCKET CONNECTION
 // ============================================================
@@ -1409,6 +1428,7 @@ function updateLobbyUI() {
       <span>${p.name}</span>
       ${p.isBot ? '<span class="bot-badge">🤖</span>' : ''}
       ${i === 0 ? '<span class="host-badge">хост</span>' : ''}
+      ${p.isBot && NET.isCreator ? `<button class="remove-bot-btn" onclick="removeBot(${i})">🗑</button>` : ''}
     `;
     list.appendChild(item);
   });
