@@ -435,6 +435,21 @@ input {
   padding-top: 0;
   padding-bottom: 16px;
 }
+@media (max-width: 480px) {
+  #game-screen {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #game-screen .game-body {
+    flex: none;
+    overflow: visible;
+  }
+  #game-screen #my-hand-area {
+    flex: none;
+  }
+}
 
 .game-header {
   width: 100%;
@@ -1110,14 +1125,16 @@ input {
   .title-sub { font-size: 15px; }
   .room-code { font-size: 36px; }
   :root { --card-w: 68px; --card-h: 95px; }
-  .voting-grid { flex-wrap: wrap; max-width: 100%; }
+  .voting-grid { flex-wrap: wrap; max-width: 100%; overflow: visible; }
   .voting-grid .card-container { width: 80px; min-width: 80px; height: 112px; }
   .results-cards-area { flex-wrap: wrap; max-width: 100%; }
-  .clue-display { font-size: 20px; }
-  .hand-area { gap: 6px; padding: 8px 6px; }
-  #my-hand-area { padding: 8px 0 2px !important; }
-  .game-body { gap: 8px; padding: 8px 0; }
+  .clue-display { font-size: 18px; margin: 6px 0; padding: 8px 16px; }
+  .clue-display img.clue-gif { max-width: 140px; max-height: 100px; }
+  .hand-area { gap: 6px; padding: 6px 6px; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; }
+  #my-hand-area { padding: 6px 0 2px !important; }
+  .game-body { gap: 6px; padding: 6px 0; }
   .phase-label { font-size: 11px; }
+  .waiting-msg { font-size: 16px; }
 }
 @media (max-width: 360px) {
   :root { --card-w: 58px; --card-h: 81px; }
