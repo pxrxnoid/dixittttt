@@ -37,7 +37,11 @@ server.listen(PORT, () => console.log('Server on port ' + PORT));
 // ============================================================
 const HAND_SIZE = 5;
 
-const BOT_NAMES = ['Кеша', 'Буба', 'Шарик', 'Мурзик', 'Пупок', 'Зефир', 'Бублик', 'Кекс', 'Тостер', 'Пончик', 'Батон', 'Сырок'];
+const BOT_NAMES = [
+  'Кеша', 'Буба', 'Шарик', 'Мурзик', 'Пупок', 'Зефир', 'Бублик', 'Кекс',
+  'Тостер', 'Пончик', 'Батон', 'Сырок', 'Компот', 'Хрюша', 'Лунтик', 'Чебурек',
+  'Пельмень', 'Вафля', 'Кнопка', 'Шуруп',
+];
 const BOT_CLUES = [
   'Красивая штука', 'Это напоминает мне детство', 'Просто вайб', 'Глубокий смысл',
   'Эмоции и чувства', 'Когда ты дома один', 'Философия жизни', 'Необъяснимое',
@@ -47,6 +51,13 @@ const BOT_CLUES = [
   'Это не то чем кажется', 'Случайность не случайна', 'Тайный знак',
   'Вкус свободы', 'Нежданчик', 'Ветер перемен', 'Сила мысли',
   'Запах дождя', 'Космос внутри', 'Последний кусок пиццы',
+  'Грустный клоун', 'Когда мама звонит', 'Пятница вечер', 'Утро без кофе',
+  'Бесконечная лестница', 'Счастье в мелочах', 'Ошибка 404', 'Дорога в никуда',
+  'Первый снег', 'Забытый пароль', 'Танец в темноте', 'Чужие тапки',
+  'Секрет бабушки', 'Тишина перед бурей', 'Сломанный зонт', 'Кот на клавиатуре',
+  'Неловкая пауза', 'Третий звонок', 'Когда никто не смотрит', 'Зов пустоты',
+  'Шаг в неизвестность', 'Вчерашний суп', 'Предчувствие', 'Эффект бабочки',
+  'Всё не так просто', 'Шёпот стен', 'Синдром самозванца', 'Сладкая ложь',
 ];
 
 function shuffle(arr) {
@@ -77,6 +88,7 @@ class GameRoom {
     this.shuffledPool = [];
     this.roundScores = {};
     this.roundLog = []; // [{round, scores: [{name, pts}]}]
+    this.usedCards = new Set(); // cards played in previous rounds — avoid re-dealing
   }
 
   isEmpty() { return this.conns.size === 0; }
@@ -245,7 +257,14 @@ class GameRoom {
   dealHands() {
     const inHands = new Set();
     this.players.forEach(p => p.hand.forEach(c => inHands.add(c)));
-    this.deck = shuffle(this.allCardIds.filter(id => !inHands.has(id)));
+    // Prefer cards that haven't been played yet; fall back to used cards if needed
+    let fresh = this.allCardIds.filter(id => !inHands.has(id) && !this.usedCards.has(id));
+    if (fresh.length < this.players.length * HAND_SIZE) {
+      // Not enough fresh cards — reset used pool
+      this.usedCards.clear();
+      fresh = this.allCardIds.filter(id => !inHands.has(id));
+    }
+    this.deck = shuffle(fresh);
     let dealing = true;
     while (dealing) {
       dealing = false;
@@ -259,6 +278,8 @@ class GameRoom {
   }
 
   startRound() {
+    // Mark played cards as used so they don't get re-dealt soon
+    this.contributions.forEach(c => this.usedCards.add(c.cardId));
     this.round++;
     this.storytellerCard = null;
     this.clue = '';

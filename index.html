@@ -135,6 +135,78 @@ input {
   max-width: 400px;
   word-break: break-word;
 }
+.clue-display img.clue-gif {
+  max-width: 200px;
+  max-height: 150px;
+  border-radius: 8px;
+}
+.gif-btn {
+  background: none;
+  border: 1px solid var(--text-muted);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.gif-btn:hover { border-color: var(--gold); color: var(--gold); }
+.gif-picker {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 400px;
+  align-items: center;
+}
+.gif-picker.open { display: flex; }
+.gif-search-row {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.gif-search-row input { flex: 1; }
+.gif-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) transparent;
+}
+.gif-grid img {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+.gif-grid img:hover { border-color: var(--gold); }
+.gif-grid img.selected { border-color: var(--gold); box-shadow: 0 0 8px var(--gold-glow); }
+.gif-preview {
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+.gif-preview.visible { display: flex; }
+.gif-preview img {
+  max-width: 120px;
+  max-height: 80px;
+  border-radius: 6px;
+  border: 1px solid var(--gold);
+}
+.gif-preview .gif-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+}
 
 .input-field {
   background: var(--bg-surface);
@@ -1308,7 +1380,13 @@ function updateLogPanel(state) {
   log.forEach(entry => {
     let html = `<div class="log-round">`;
     html += `<div class="log-round-header"><span>Раунд ${entry.round}</span></div>`;
-    if (entry.clue) html += `<div class="log-round-clue">"${entry.clue}"</div>`;
+    if (entry.clue) {
+      if (entry.clue.startsWith('gif:')) {
+        html += `<div class="log-round-clue"><img src="${entry.clue.slice(4)}" style="max-width:60px;max-height:40px;border-radius:4px;"></div>`;
+      } else {
+        html += `<div class="log-round-clue">"${entry.clue}"</div>`;
+      }
+    }
     entry.scores.forEach(s => {
       html += `<div class="log-score-line"><span>${s.name}</span><span class="pts${s.pts === 0 ? ' zero' : ''}">+${s.pts}</span></div>`;
     });
@@ -1628,12 +1706,26 @@ function renderStoryteller(body, state) {
       <p class="text-dim text-small text-center">Выбери карту и придумай ассоциацию</p>
       <div class="clue-input-area">
         <input class="input-field" id="clue-input" type="text" placeholder="Твоя ассоциация…" maxlength="100" autocomplete="off">
+        <button class="gif-btn" onclick="toggleGifPicker()">GIF</button>
         <button class="btn btn--small" id="submit-clue-btn" onclick="doSubmitClue()" disabled>Ок</button>
+      </div>
+      <div class="gif-preview" id="gif-preview">
+        <img id="gif-preview-img">
+        <button class="gif-remove" onclick="clearGif()">✕</button>
+      </div>
+      <div class="gif-picker" id="gif-picker">
+        <div class="gif-search-row">
+          <input class="input-field" id="gif-search" type="text" placeholder="Поиск GIF…" autocomplete="off">
+          <button class="btn btn--small" onclick="searchGifs()">🔍</button>
+        </div>
+        <div class="gif-grid" id="gif-grid"></div>
       </div>
     `;
     selectedCard = null;
+    selectedGifUrl = null;
     makeHandSelectable(state, 1);
     document.getElementById('clue-input').addEventListener('input', updateClueBtn);
+    document.getElementById('gif-search').addEventListener('keydown', e => { if (e.key === 'Enter') searchGifs(); });
   } else {
     body.innerHTML = `
       <div class="waiting-msg">${stName} придумывает ассоциацию<span class="waiting-dots">...</span></div>
@@ -1641,17 +1733,79 @@ function renderStoryteller(body, state) {
   }
 }
 
+let selectedGifUrl = null;
+
 function updateClueBtn() {
   const btn = document.getElementById('submit-clue-btn');
   if (!btn) return;
   const clue = document.getElementById('clue-input')?.value.trim();
-  btn.disabled = !(selectedCards.length >= 1 && clue);
+  btn.disabled = !(selectedCards.length >= 1 && (clue || selectedGifUrl));
 }
 
 function doSubmitClue() {
-  const clue = document.getElementById('clue-input').value.trim();
+  const textClue = document.getElementById('clue-input').value.trim();
+  const clue = selectedGifUrl ? 'gif:' + selectedGifUrl : textClue;
   if (!selectedCard || !clue) return;
   sendMsg({ type: 'storyteller', cardId: selectedCard, clue });
+}
+
+function toggleGifPicker() {
+  document.getElementById('gif-picker').classList.toggle('open');
+}
+
+async function searchGifs() {
+  const q = document.getElementById('gif-search').value.trim();
+  if (!q) return;
+  const grid = document.getElementById('gif-grid');
+  grid.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;">Загрузка...</div>';
+  try {
+    const TENOR_KEY = 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ';
+    const res = await fetch('https://tenor.googleapis.com/v2/search?q=' + encodeURIComponent(q) + '&key=' + TENOR_KEY + '&limit=12&media_filter=tinygif,gif');
+    const data = await res.json();
+    grid.innerHTML = '';
+    (data.results || []).forEach(r => {
+      const url = r.media_formats?.tinygif?.url || r.media_formats?.gif?.url;
+      if (!url) return;
+      const fullUrl = r.media_formats?.gif?.url || url;
+      const img = document.createElement('img');
+      img.src = url;
+      img.loading = 'lazy';
+      img.addEventListener('click', () => {
+        grid.querySelectorAll('img').forEach(i => i.classList.remove('selected'));
+        img.classList.add('selected');
+        selectGif(fullUrl);
+      });
+      grid.appendChild(img);
+    });
+    if (grid.children.length === 0) grid.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Ничего не найдено</div>';
+  } catch {
+    grid.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Ошибка загрузки</div>';
+  }
+}
+
+function selectGif(url) {
+  selectedGifUrl = url;
+  const preview = document.getElementById('gif-preview');
+  document.getElementById('gif-preview-img').src = url;
+  preview.classList.add('visible');
+  document.getElementById('gif-picker').classList.remove('open');
+  document.getElementById('clue-input').value = '';
+  document.getElementById('clue-input').disabled = true;
+  updateClueBtn();
+}
+
+function clearGif() {
+  selectedGifUrl = null;
+  document.getElementById('gif-preview').classList.remove('visible');
+  document.getElementById('clue-input').disabled = false;
+  updateClueBtn();
+}
+
+function renderClue(clue) {
+  if (clue.startsWith('gif:')) {
+    return '<img class="clue-gif" src="' + clue.slice(4) + '">';
+  }
+  return '"' + clue + '"';
 }
 
 // --- CONTRIBUTE PHASE ---
@@ -1663,7 +1817,7 @@ function renderContribute(body, state) {
   if (isSt) {
     body.innerHTML = `
       <div class="phase-label">Ассоциация</div>
-      <div class="clue-display">"${state.clue}"</div>
+      <div class="clue-display">${renderClue(state.clue)}</div>
       <div class="waiting-msg">Игроки выбирают карты<span class="waiting-dots">...</span></div>
       <div class="waiting-progress">${state.contributedCount} / ${state.totalContribNeeded}</div>
     `;
@@ -1673,7 +1827,7 @@ function renderContribute(body, state) {
   if (state.alreadyContributed) {
     body.innerHTML = `
       <div class="phase-label">Ассоциация</div>
-      <div class="clue-display">"${state.clue}"</div>
+      <div class="clue-display">${renderClue(state.clue)}</div>
       <div class="waiting-msg">Ожидание остальных<span class="waiting-dots">...</span></div>
       <div class="waiting-progress">${state.contributedCount} / ${state.totalContribNeeded}</div>
     `;
@@ -1683,7 +1837,7 @@ function renderContribute(body, state) {
   const remaining = needCards - myContribCount;
   body.innerHTML = `
     <div class="phase-label">Блеф</div>
-    <div class="clue-display">"${state.clue}"</div>
+    <div class="clue-display">${renderClue(state.clue)}</div>
     <p class="text-dim text-small text-center">Выбери ${remaining > 1 ? remaining + ' карты' : 'карту'} под ассоциацию</p>
     <button class="btn btn--small" id="submit-ct-btn" onclick="doSubmitContribute()" disabled>Отправить</button>
   `;
@@ -1705,7 +1859,7 @@ function renderVote(body, state) {
   if (isSt) {
     body.innerHTML = `
       <div class="phase-label">Голосование</div>
-      <div class="clue-display">"${state.clue}"</div>
+      <div class="clue-display">${renderClue(state.clue)}</div>
       <div class="voting-grid" id="vt-grid"></div>
       <div class="waiting-msg" style="font-size:16px;">Игроки голосуют<span class="waiting-dots">...</span></div>
       <div class="waiting-progress">${state.votedCount} / ${state.totalNonSt}</div>
@@ -1722,7 +1876,7 @@ function renderVote(body, state) {
   if (state.alreadyVoted) {
     body.innerHTML = `
       <div class="phase-label">Голосование</div>
-      <div class="clue-display">"${state.clue}"</div>
+      <div class="clue-display">${renderClue(state.clue)}</div>
       <div class="waiting-msg">Ожидание остальных<span class="waiting-dots">...</span></div>
       <div class="waiting-progress">${state.votedCount} / ${state.totalNonSt}</div>
     `;
@@ -1731,7 +1885,7 @@ function renderVote(body, state) {
 
   body.innerHTML = `
     <div class="phase-label">Голосование</div>
-    <div class="clue-display">"${state.clue}"</div>
+    <div class="clue-display">${renderClue(state.clue)}</div>
     <p class="text-dim text-small text-center">Угадай карту рассказчика</p>
     <div class="voting-grid" id="vt-grid"></div>
     <button class="btn btn--small" id="submit-vt-btn" onclick="doSubmitVote()" disabled>Голосовать</button>
@@ -1767,7 +1921,26 @@ function renderResults(body, state) {
   let html = '';
 
   if (isGameOver) {
-    // Full game over screen with leaderboard
+    // Show last round cards like normal results
+    html += `<div class="phase-label">Раскрытие</div>`;
+    html += `<div class="clue-display">${renderClue(state.clue)}</div>`;
+    html += `<div class="results-cards-area">`;
+    res.pool.forEach(entry => {
+      const isSt = entry.isStoryteller;
+      html += `<div class="result-card-wrapper">`;
+      html += `<div class="card-container${isSt ? ' storyteller-card' : ''}" style="cursor:default;">`;
+      const idx = parseInt(entry.cardId.split('_')[1]);
+      html += `<img src="${IMAGE_FILES[idx]}" draggable="false" style="width:100%;height:100%;display:block;object-fit:cover;">`;
+      html += `</div>`;
+      html += `<div class="owner-label${isSt ? ' storyteller' : ''}">${entry.ownerName}${isSt ? ' ★' : ''}</div>`;
+      if (entry.voters.length > 0) {
+        html += `<div class="votes-list">Голоса: ${entry.voters.join(', ')}</div>`;
+      }
+      html += `</div>`;
+    });
+    html += `</div>`;
+
+    // Leaderboard instead of round scores
     const winner = state.players.reduce((a, b) => a.score >= b.score ? a : b);
     const medals = ['🥇', '🥈', '🥉'];
     const tierClass = ['gold', 'silver', 'bronze'];
@@ -1790,7 +1963,7 @@ function renderResults(body, state) {
     html += `<button class="btn mt-12" onclick="showTitle()">На главную</button>`;
   } else {
     html += `<div class="phase-label">Раскрытие</div>`;
-    html += `<div class="clue-display">"${state.clue}"</div>`;
+    html += `<div class="clue-display">${renderClue(state.clue)}</div>`;
     html += `<div class="results-cards-area">`;
     res.pool.forEach(entry => {
       const isSt = entry.isStoryteller;
