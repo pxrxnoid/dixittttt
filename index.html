@@ -901,17 +901,16 @@ input {
     justify-content: center;
   }
   #my-hand-area .hand-area .card-container {
-    --fan-angle: 0deg;
     --fan-y: 0px;
-    transform: rotate(var(--fan-angle)) translateY(var(--fan-y));
+    transform: translateY(var(--fan-y)) scale(1);
     transform-origin: bottom center;
-    margin: 0 2px;
-    transition: transform 0.45s cubic-bezier(.4,0,.2,1), border-color 0.15s ease, box-shadow 0.3s ease, margin 0.4s ease;
+    margin: 0 6px;
+    transition: transform 0.5s cubic-bezier(.4,0,.2,1), border-color 0.15s ease, box-shadow 0.35s ease, margin 0.5s cubic-bezier(.4,0,.2,1);
   }
   #my-hand-area .hand-area .card-container.selectable:hover {
-    transform: translateY(-36px) scale(1.1) !important;
+    transform: translateY(-32px) scale(1.08) !important;
     z-index: 20;
-    margin: 0 12px;
+    margin: 0 14px;
     box-shadow:
       0 20px 50px rgba(0,0,0,0.6),
       0 0 30px rgba(240,180,41,0.15),
@@ -919,7 +918,7 @@ input {
     border-color: rgba(255,255,255,0.3);
   }
   #my-hand-area .hand-area .card-container.selected {
-    transform: translateY(-40px) scale(1.12) !important;
+    transform: translateY(-36px) scale(1.1) !important;
     z-index: 21;
     margin: 0 14px;
     border-color: var(--gold);
@@ -927,7 +926,7 @@ input {
       0 0 30px var(--gold-glow),
       0 20px 50px rgba(0,0,0,0.6),
       0 0 60px rgba(240,180,41,0.1);
-    transition: transform 0.3s cubic-bezier(.4,0,.2,1), border-color 0.05s ease, box-shadow 0.1s ease, margin 0.3s ease;
+    transition: transform 0.35s cubic-bezier(.4,0,.2,1), border-color 0s, box-shadow 0s, margin 0.35s cubic-bezier(.4,0,.2,1);
   }
 }
 
