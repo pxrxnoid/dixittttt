@@ -469,22 +469,32 @@ input {
    ============================================================ */
 #game-screen {
   justify-content: flex-start;
-  padding-top: 0;
-  padding-bottom: 16px;
+  padding: 0 0 8px 0;
+  overflow: hidden;
 }
 @media (max-width: 480px) {
   #game-screen {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+    padding: 0;
   }
   #game-screen .game-body {
     flex: none;
     overflow: visible;
+    min-height: 0;
+    padding: 12px 12px;
   }
   #game-screen #my-hand-area {
     flex: none;
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-deep);
+    z-index: 10;
+    border-top: 1px solid rgba(74,80,104,0.3);
+    padding: 6px 4px 2px !important;
   }
 }
 
@@ -1171,24 +1181,76 @@ input {
    RESPONSIVE
    ============================================================ */
 @media (max-width: 480px) {
-  .title-logo { font-size: 44px; }
-  .title-sub { font-size: 15px; }
-  .room-code { font-size: 36px; }
-  :root { --card-w: 68px; --card-h: 95px; }
-  .voting-grid { flex-wrap: wrap; max-width: 100%; overflow: visible; }
-  .voting-grid .card-container { width: 80px; min-width: 80px; height: 112px; }
-  .results-cards-area { flex-wrap: wrap; max-width: 100%; }
-  .clue-display { font-size: 18px; margin: 6px 0; padding: 8px 16px; }
-  .clue-display img.clue-gif { max-width: 140px; max-height: 100px; }
-  .hand-area { gap: 6px; padding: 6px 6px; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; }
-  #my-hand-area { padding: 6px 0 2px !important; }
-  .game-body { gap: 6px; padding: 6px 0; }
-  .phase-label { font-size: 11px; }
-  .waiting-msg { font-size: 16px; }
+  .title-logo { font-size: 40px; }
+  .title-sub { font-size: 14px; margin-bottom: 32px; }
+  .room-code { font-size: 34px; letter-spacing: 8px; }
+  .room-code-box { padding: 14px 24px; }
+  :root { --card-w: 72px; --card-h: 101px; }
+
+  /* Game header compact */
+  .game-header { padding: 8px 12px; gap: 6px; }
+  .gh-left { font-size: 12px; gap: 6px; }
+  .end-game-btn { font-size: 10px; padding: 3px 8px; }
+
+  /* Game body fills available space */
+  .game-body { gap: 10px; padding: 10px 8px; justify-content: flex-start; }
+
+  /* Phase labels */
+  .phase-label { font-size: 10px; letter-spacing: 2px; margin-bottom: 4px; }
+  .waiting-msg { font-size: 15px; }
+
+  /* Clue display */
+  .clue-display { font-size: 16px; margin: 4px 0; padding: 8px 14px; max-width: 100%; }
+  .clue-display img.clue-gif { max-width: 120px; max-height: 80px; }
+
+  /* Clue input */
+  .clue-input-area { max-width: 100%; }
+  .clue-input-area input { font-size: 14px; padding: 10px 12px; }
+
+  /* Voting grid - wrap for mobile */
+  .voting-grid { flex-wrap: wrap; max-width: 100%; overflow: visible; gap: 8px; }
+  .voting-grid .card-container { width: 85px; min-width: 85px; height: 119px; }
+
+  /* Results */
+  .results-cards-area { flex-wrap: wrap; max-width: 100%; gap: 10px; }
+  .result-card-wrapper .card-container { width: 80px; min-width: 80px; height: 112px; }
+
+  /* Hand area - horizontal scroll */
+  .hand-area { gap: 8px; padding: 8px 8px; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; }
+  #my-hand-area { padding: 8px 0 4px !important; }
+
+  /* Score changes compact */
+  .score-changes { max-width: 100%; }
+  .score-row { padding: 8px 12px; font-size: 13px; }
+
+  /* Buttons */
+  .btn { padding: 12px 28px; font-size: 13px; }
+  .btn--small { padding: 9px 20px; font-size: 12px; }
+
+  /* Lobby */
+  .player-list { max-width: 100%; }
+  .player-list-item { padding: 10px 14px; font-size: 14px; }
+
+  /* Leaderboard */
+  .leaderboard { max-width: 100%; }
+  .lb-entry { padding: 10px 14px; gap: 10px; }
+  .lb-name { font-size: 14px; }
+  .lb-score { font-size: 16px; }
+
+  /* Game over */
+  .game-over-banner { font-size: 22px; }
+
+  /* Text helpers */
+  .text-small { font-size: 12px; }
+  p.text-dim.text-small.text-center { font-size: 12px; }
 }
+
 @media (max-width: 360px) {
-  :root { --card-w: 58px; --card-h: 81px; }
-  .voting-grid .card-container { width: 70px; min-width: 70px; height: 98px; }
+  :root { --card-w: 62px; --card-h: 87px; }
+  .voting-grid .card-container { width: 72px; min-width: 72px; height: 101px; }
+  .result-card-wrapper .card-container { width: 68px; min-width: 68px; height: 95px; }
+  .title-logo { font-size: 34px; }
+  .room-code { font-size: 30px; }
 }
 
 /* ============================================================
@@ -1530,13 +1592,22 @@ function showTitle() {
   NET.intentionalDisconnect = true;
   clearSession();
   if (NET.socket) { NET.socket.close(); NET.socket = null; }
+  NET.roomCode = '';
+  NET.myIdx = -1;
   serverImageUrls = [];
+  localState = null;
   showScreen('title-screen');
-  history.pushState({ screen: 'title' }, '', '/');
+  if (location.pathname !== '/') history.pushState({ screen: 'title' }, '', '/');
 }
 
-function showCreate() { showScreen('create-screen'); }
-function showJoin() { showScreen('join-screen'); }
+function showCreate() {
+  showScreen('create-screen');
+  history.pushState({ screen: 'create' }, '', '/create');
+}
+function showJoin() {
+  showScreen('join-screen');
+  history.pushState({ screen: 'join' }, '', '/join');
+}
 
 function showStatus(msg) {
   const bar = document.getElementById('status-bar');
@@ -1705,13 +1776,18 @@ function connectToRoom(roomCode, onOpen) {
 
 // Browser back/forward navigation
 window.addEventListener('popstate', (e) => {
-  if (!e.state || e.state.screen === 'title') {
-    NET.intentionalDisconnect = true;
-    sessionStorage.removeItem('xaxit-session');
-    if (NET.socket) { NET.socket.close(); NET.socket = null; }
-    serverImageUrls = [];
-    showScreen('title-screen');
-  }
+  const screen = e.state?.screen;
+  if (screen === 'create') { showScreen('create-screen'); return; }
+  if (screen === 'join') { showScreen('join-screen'); return; }
+  // Default: go to title and disconnect
+  NET.intentionalDisconnect = true;
+  sessionStorage.removeItem('xaxit-session');
+  if (NET.socket) { NET.socket.close(); NET.socket = null; }
+  NET.roomCode = '';
+  NET.myIdx = -1;
+  serverImageUrls = [];
+  localState = null;
+  showScreen('title-screen');
 });
 
 function sendMsg(msg) {
@@ -1874,6 +1950,10 @@ function onServerMessage(data) {
     const prev = localState;
     localState = data;
     if (data.isCreator !== undefined) NET.isCreator = data.isCreator;
+    // Rebuild image URLs if missing (e.g. after page reload/rejoin)
+    if (serverImageUrls.length === 0 && data.imageCount && NET.roomCode) {
+      serverImageUrls = Array.from({length: data.imageCount}, (_, i) => '/img/' + NET.roomCode + '/' + i);
+    }
     saveSession();
     // Skip full re-render if phase/round/counts haven't changed (avoids deselecting cards)
     if (prev && prev.type === 'state' && prev.phase === data.phase && prev.round === data.round
@@ -2722,12 +2802,12 @@ async function adminDeleteCustom(id) {
   const routeCode = pathMatch ? pathMatch[2].toUpperCase() : null;
   const routeType = pathMatch ? pathMatch[1] : null;
 
-  // Try reconnect from saved session
+  // Try reconnect from saved session — only if URL points to a room
   const raw = sessionStorage.getItem('xaxit-session');
-  if (raw) {
+  if (raw && routeType === 'room' && routeCode) {
     try {
       const s = JSON.parse(raw);
-      if (s.roomCode && s.playerName) {
+      if (s.roomCode && s.playerName && s.roomCode === routeCode) {
         NET.myName = s.playerName;
         connectToRoom(s.roomCode, () => {
           sendMsg({ type: 'rejoin', name: s.playerName });
@@ -2736,20 +2816,36 @@ async function adminDeleteCustom(id) {
       }
     } catch {}
   }
+  // Clear stale session if not on a matching room URL
+  if (raw && routeType !== 'room') {
+    sessionStorage.removeItem('xaxit-session');
+  }
 
-  // If URL has a room code via /join/CODE or /room/CODE
-  if (routeCode) {
+  // /join/CODE — pre-fill join screen
+  if (routeType === 'join' && routeCode) {
     document.getElementById('join-code').value = routeCode;
-    showJoin();
+    showScreen('join-screen');
     return;
   }
 
-  // Also support old hash-based URLs
+  // /create — show create screen
+  if (location.pathname === '/create') {
+    showScreen('create-screen');
+    return;
+  }
+
+  // /join (no code) — show join screen
+  if (location.pathname === '/join') {
+    showScreen('join-screen');
+    return;
+  }
+
+  // Old hash-based URLs
   const hash = location.hash.replace('#', '').toUpperCase();
   if (hash && hash.length === 4) {
     document.getElementById('join-code').value = hash;
     history.replaceState(null, '', '/join/' + hash);
-    showJoin();
+    showScreen('join-screen');
     return;
   }
 
