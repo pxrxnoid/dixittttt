@@ -2,9 +2,44 @@ const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const path = require('path');
+const multer = require('multer');
 
 const app = express();
-app.use(express.static(path.join(__dirname)));
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+// Image storage: roomCode -> Map<id, Buffer>
+const roomImages = new Map();
+
+// Upload images for a room
+app.post('/upload/:roomCode', upload.array('images', 300), (req, res) => {
+  const code = req.params.roomCode.toUpperCase();
+  if (!roomImages.has(code)) roomImages.set(code, new Map());
+  const store = roomImages.get(code);
+  const urls = [];
+  for (const file of (req.files || [])) {
+    const id = store.size;
+    store.set(id, { buffer: file.buffer, mime: file.mimetype || 'image/jpeg' });
+    urls.push('/img/' + code + '/' + id);
+  }
+  res.json({ urls });
+});
+
+// Serve images
+app.get('/img/:roomCode/:id', (req, res) => {
+  const store = roomImages.get(req.params.roomCode.toUpperCase());
+  const img = store?.get(parseInt(req.params.id));
+  if (!img) return res.status(404).end();
+  res.set('Content-Type', img.mime);
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.send(img.buffer);
+});
+
+// SPA: serve index.html for all non-file routes
+app.use(express.static(path.join(__dirname), { index: false }));
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/ws/') || req.path.startsWith('/img/') || req.path.startsWith('/upload/')) return;
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });
@@ -25,7 +60,12 @@ server.on('upgrade', (req, socket, head) => {
     ws.on('close', () => {
       room.onClose(ws);
       if (room.isEmpty()) {
-        setTimeout(() => { if (room.isEmpty()) rooms.delete(roomCode); }, 300000);
+        setTimeout(() => {
+          if (room.isEmpty()) {
+            rooms.delete(roomCode);
+            roomImages.delete(roomCode);
+          }
+        }, 300000);
       }
     });
   });
@@ -37,7 +77,8 @@ server.listen(PORT, () => console.log('Server on port ' + PORT));
 // ============================================================
 const HAND_SIZE = 6;
 const HAND_SIZE_3P = 7;
-const STORYTELLER_TIMEOUT = 60000; // 60 seconds
+const STORYTELLER_TIMEOUT = 60000;
+const ACTION_TIMEOUT = 30000;
 
 const BOT_NAMES = [
   'Кеша', 'Буба', 'Шарик', 'Мурзик', 'Пупок', 'Зефир', 'Бублик', 'Кекс',
@@ -76,7 +117,7 @@ class GameRoom {
     this.roomCode = roomCode;
     this.conns = new Set();
     this.players = [];
-    this.imageFiles = [];
+    this.imageCount = 0;
     this.allCardIds = [];
     this.deck = [];
     this.phase = 'lobby';
@@ -89,10 +130,13 @@ class GameRoom {
     this.votes = [];
     this.shuffledPool = [];
     this.roundScores = {};
-    this.roundLog = []; // [{round, scores: [{name, pts}]}]
-    this.usedCards = new Set(); // cards played in previous rounds — avoid re-dealing
-    this.storytellerTimer = null;
-    this.storytellerDeadline = null;
+    this.roundLog = [];
+    this.usedCards = new Set();
+    this.settings = { storytellerTimer: true, actionTimer: true };
+    // Timers
+    this.stTimer = null; this.stDeadline = null;
+    this.ctTimer = null; this.ctDeadline = null;
+    this.vtTimer = null; this.vtDeadline = null;
   }
 
   isEmpty() { return this.conns.size === 0; }
@@ -134,7 +178,8 @@ class GameRoom {
       return;
     }
     this.winScore = data.winScore || 32;
-    this.imageFiles = data.imageFiles || [];
+    this.imageCount = data.imageCount || 0;
+    if (data.settings) this.settings = { ...this.settings, ...data.settings };
     this.players.push({ name: data.name, score: 0, hand: [], connId: ws._connId, connected: true });
     ws.send(JSON.stringify({ type: 'joined', playerIdx: 0, roomCode: this.roomCode }));
     this.broadcastLobby();
@@ -191,11 +236,11 @@ class GameRoom {
   handleStartGame(ws) {
     if (this.getPlayerIdx(ws) !== 0) return;
     if (this.players.length < 2) return;
-    if (this.imageFiles.length < this.players.length * 2) {
+    if (this.imageCount < this.players.length * 2) {
       ws.send(JSON.stringify({ type: 'error', msg: 'Мало карт!' }));
       return;
     }
-    this.allCardIds = this.imageFiles.map((_, i) => 'card_' + i);
+    this.allCardIds = Array.from({ length: this.imageCount }, (_, i) => 'card_' + i);
     this.round = 0;
     this.storytellerIdx = 0;
     this.players.forEach(p => { p.score = 0; p.hand = []; });
@@ -206,8 +251,7 @@ class GameRoom {
   handleEndGame(ws) {
     if (this.getPlayerIdx(ws) !== 0) return;
     if (this.phase === 'lobby') return;
-    if (this.storytellerTimer) { clearTimeout(this.storytellerTimer); this.storytellerTimer = null; }
-    this.storytellerDeadline = null;
+    this.clearAllTimers();
     this.phase = 'lobby';
     this.round = 0;
     this.roundLog = [];
@@ -219,13 +263,13 @@ class GameRoom {
   handleStoryteller(ws, data) {
     const pidx = this.getPlayerIdx(ws);
     if (this.phase !== 'storyteller' || pidx !== this.storytellerIdx) return;
-    if (this.storytellerTimer) { clearTimeout(this.storytellerTimer); this.storytellerTimer = null; }
-    this.storytellerDeadline = null;
+    this.clearTimer('st');
     this.storytellerCard = data.cardId;
     this.clue = data.clue;
     this.players[pidx].hand = this.players[pidx].hand.filter(c => c !== data.cardId);
     this.contributions.push({ playerIdx: pidx, cardId: data.cardId });
     this.phase = 'contribute';
+    this.startActionTimer('ct');
     this.sendState();
     this.checkContributeDone();
   }
@@ -262,13 +306,86 @@ class GameRoom {
     return this.players.findIndex(p => p.connId === ws._connId);
   }
 
+  // --- Timer system ---
+  clearTimer(which) {
+    if (this[which + 'Timer']) { clearTimeout(this[which + 'Timer']); this[which + 'Timer'] = null; }
+    this[which + 'Deadline'] = null;
+  }
+  clearAllTimers() { this.clearTimer('st'); this.clearTimer('ct'); this.clearTimer('vt'); }
+
+  startStorytellerTimer() {
+    if (!this.settings.storytellerTimer) return;
+    this.clearTimer('st');
+    this.stDeadline = Date.now() + STORYTELLER_TIMEOUT;
+    this.stTimer = setTimeout(() => {
+      if (this.phase !== 'storyteller') return;
+      const st = this.players[this.storytellerIdx];
+      if (!st || st.hand.length === 0) return;
+      const cardId = st.hand[Math.floor(Math.random() * st.hand.length)];
+      this.storytellerCard = cardId;
+      this.clue = '...';
+      st.hand = st.hand.filter(c => c !== cardId);
+      this.contributions.push({ playerIdx: this.storytellerIdx, cardId });
+      this.phase = 'contribute';
+      this.clearTimer('st');
+      this.startActionTimer('ct');
+      this.sendState();
+      this.checkContributeDone();
+    }, STORYTELLER_TIMEOUT);
+  }
+
+  startActionTimer(which) {
+    if (!this.settings.actionTimer) return;
+    this.clearTimer(which);
+    this[which + 'Deadline'] = Date.now() + ACTION_TIMEOUT;
+    this[which + 'Timer'] = setTimeout(() => {
+      if (which === 'ct') this.autoContribute();
+      else if (which === 'vt') this.autoVote();
+    }, ACTION_TIMEOUT);
+  }
+
+  autoContribute() {
+    if (this.phase !== 'contribute') return;
+    const cardsNeeded = this.players.length < 4 ? 2 : 1;
+    for (let i = 0; i < this.players.length; i++) {
+      if (i === this.storytellerIdx) continue;
+      const p = this.players[i];
+      const mc = this.contributions.filter(c => c.playerIdx === i).length;
+      const remaining = cardsNeeded - mc;
+      for (let j = 0; j < remaining && p.hand.length > 0; j++) {
+        const pick = p.hand[Math.floor(Math.random() * p.hand.length)];
+        p.hand = p.hand.filter(c => c !== pick);
+        this.contributions.push({ playerIdx: i, cardId: pick });
+      }
+    }
+    this.clearTimer('ct');
+    this.sendState();
+    this.checkContributeDone();
+  }
+
+  autoVote() {
+    if (this.phase !== 'vote') return;
+    for (let i = 0; i < this.players.length; i++) {
+      if (i === this.storytellerIdx) continue;
+      if (this.votes.find(v => v.voterIdx === i)) continue;
+      const ownCards = new Set(this.contributions.filter(c => c.playerIdx === i).map(c => c.cardId));
+      const votable = this.shuffledPool.filter(e => !ownCards.has(e.cardId));
+      if (votable.length === 0) continue;
+      const pick = votable[Math.floor(Math.random() * votable.length)];
+      this.votes.push({ voterIdx: i, cardId: pick.cardId });
+    }
+    this.clearTimer('vt');
+    this.sendState();
+    this.checkVoteDone();
+  }
+
+  // --- Game logic ---
   dealHands() {
     const inHands = new Set();
     this.players.forEach(p => p.hand.forEach(c => inHands.add(c)));
-    // Prefer cards that haven't been played yet; fall back to used cards if needed
     let fresh = this.allCardIds.filter(id => !inHands.has(id) && !this.usedCards.has(id));
-    if (fresh.length < this.players.length * HAND_SIZE) {
-      // Not enough fresh cards — reset used pool
+    const hs = this.players.length < 4 ? HAND_SIZE_3P : HAND_SIZE;
+    if (fresh.length < this.players.length * hs) {
       this.usedCards.clear();
       fresh = this.allCardIds.filter(id => !inHands.has(id));
     }
@@ -277,7 +394,6 @@ class GameRoom {
     while (dealing) {
       dealing = false;
       for (const p of this.players) {
-        const hs = this.players.length < 4 ? HAND_SIZE_3P : HAND_SIZE;
         if (p.hand.length < hs && this.deck.length > 0) {
           p.hand.push(this.deck.pop());
           dealing = true;
@@ -287,7 +403,6 @@ class GameRoom {
   }
 
   startRound() {
-    // Mark played cards as used so they don't get re-dealt soon
     this.contributions.forEach(c => this.usedCards.add(c.cardId));
     this.round++;
     this.storytellerCard = null;
@@ -301,38 +416,27 @@ class GameRoom {
     this.sendState();
   }
 
-  startStorytellerTimer() {
-    if (this.storytellerTimer) clearTimeout(this.storytellerTimer);
-    this.storytellerDeadline = Date.now() + STORYTELLER_TIMEOUT;
-    this.storytellerTimer = setTimeout(() => {
-      if (this.phase !== 'storyteller') return;
-      // Auto-submit random card with empty clue
-      const st = this.players[this.storytellerIdx];
-      if (!st || st.hand.length === 0) return;
-      const cardId = st.hand[Math.floor(Math.random() * st.hand.length)];
-      this.storytellerCard = cardId;
-      this.clue = '...';
-      st.hand = st.hand.filter(c => c !== cardId);
-      this.contributions.push({ playerIdx: this.storytellerIdx, cardId });
-      this.phase = 'contribute';
-      this.storytellerDeadline = null;
-      this.sendState();
-      this.checkContributeDone();
-    }, STORYTELLER_TIMEOUT);
-  }
-
   checkContributeDone() {
     const cardsNeeded = this.players.length < 4 ? 2 : 1;
     if (this.contributions.length >= 1 + (this.players.length - 1) * cardsNeeded) {
+      this.clearTimer('ct');
       this.shuffledPool = shuffle(this.contributions.map(c => ({ cardId: c.cardId, ownerIdx: c.playerIdx })));
       this.phase = 'vote';
+      this.startActionTimer('vt');
       this.sendState();
       this.checkVoteDone();
     }
   }
 
   checkVoteDone() {
+    const nonBotNonSt = this.players.filter((p, i) => i !== this.storytellerIdx && !p.isBot);
+    const humanVotes = this.votes.filter(v => nonBotNonSt.some((_, ni) => {
+      const realIdx = this.players.findIndex((pp, ii) => ii !== this.storytellerIdx && !pp.isBot && pp === nonBotNonSt[ni]);
+      return v.voterIdx === realIdx;
+    }));
+    // Simpler: just check total votes >= non-storyteller count
     if (this.votes.length >= this.players.length - 1) {
+      this.clearTimer('vt');
       this.calculateScores();
       this.phase = 'results';
       this.sendState();
@@ -348,7 +452,6 @@ class GameRoom {
     if (correct.length === nonSt.length || correct.length === 0) {
       nonSt.forEach(i => scores[i] += 2);
     } else {
-      // 3-player special: if only 1 guessed, storyteller and guesser get 4 each
       const bonus = (this.players.length === 3 && correct.length === 1) ? 4 : 3;
       scores[stIdx] += bonus;
       correct.forEach(v => scores[v.voterIdx] += bonus);
@@ -389,7 +492,9 @@ class GameRoom {
       this.clue = clue;
       this.players[bot.idx].hand = this.players[bot.idx].hand.filter(c => c !== cardId);
       this.contributions.push({ playerIdx: bot.idx, cardId });
+      this.clearTimer('st');
       this.phase = 'contribute';
+      this.startActionTimer('ct');
       this.sendState();
       this.checkContributeDone();
       return;
@@ -444,9 +549,21 @@ class GameRoom {
       isCreator: idx === 0,
       roundLog: this.roundLog,
       storytellerName: this.players[this.storytellerIdx]?.name || '',
+      imageCount: this.imageCount,
+      settings: this.settings,
     };
-    if (this.phase === 'storyteller' && this.storytellerDeadline) {
-      s.timerRemaining = Math.max(0, this.storytellerDeadline - Date.now());
+    // Timer info for whichever phase is active
+    if (this.phase === 'storyteller' && this.stDeadline) {
+      s.timerRemaining = Math.max(0, this.stDeadline - Date.now());
+      s.timerTotal = STORYTELLER_TIMEOUT;
+    }
+    if (this.phase === 'contribute' && this.ctDeadline) {
+      s.timerRemaining = Math.max(0, this.ctDeadline - Date.now());
+      s.timerTotal = ACTION_TIMEOUT;
+    }
+    if (this.phase === 'vote' && this.vtDeadline) {
+      s.timerRemaining = Math.max(0, this.vtDeadline - Date.now());
+      s.timerTotal = ACTION_TIMEOUT;
     }
     if (this.phase === 'vote' || this.phase === 'results')
       s.pool = this.shuffledPool.map(e => e.cardId);
@@ -481,7 +598,8 @@ class GameRoom {
     const msg = JSON.stringify({
       type: 'lobby', players: this.players.map(p => ({ name: p.name, isBot: !!p.isBot })),
       winScore: this.winScore, roomCode: this.roomCode,
-      imageFiles: this.imageFiles,
+      imageCount: this.imageCount,
+      settings: this.settings,
     });
     for (const ws of this.conns) { try { ws.send(msg); } catch {} }
   }
