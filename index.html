@@ -165,9 +165,9 @@ input {
 .phase-label::after { right: 0; transform: rotate(180deg); }
 
 .clue-display {
-  font-family: 'Playfair Display', serif;
-  font-style: italic;
-  font-weight: 400;
+  font-family: 'Nunito', sans-serif;
+  font-style: normal;
+  font-weight: 700;
   font-size: 22px;
   color: var(--amber);
   text-align: center;
@@ -181,13 +181,7 @@ input {
   position: relative;
 }
 .clue-display::before {
-  content: '"';
-  position: absolute;
-  top: 4px; left: 12px;
-  font-size: 28px;
-  color: var(--gold-dim);
-  opacity: 0.4;
-  font-family: 'Playfair Display', serif;
+  display: none;
 }
 .clue-display img.clue-gif {
   max-width: 200px;
@@ -514,10 +508,9 @@ input {
   padding: 0;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 50% 60%, rgba(30,80,50,0.25) 0%, transparent 70%),
-    radial-gradient(ellipse at 50% 100%, rgba(0,0,0,0.5) 0%, transparent 50%),
-    linear-gradient(180deg, #0c1117 0%, #122218 30%, #163020 50%, #122218 70%, #0c1117 100%);
-  background-attachment: fixed;
+    radial-gradient(ellipse at 30% 20%, rgba(100,60,180,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(240,180,41,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 40%, #141a35 0%, var(--bg-deep) 70%);
 }
 @media (max-width: 600px) {
   #game-screen {
@@ -896,7 +889,7 @@ input {
 @media (min-width: 601px) {
   #my-hand-area {
     overflow: visible !important;
-    padding: 30px 0 24px !important;
+    padding: 30px 0 48px !important;
     border-top: none !important;
     background: linear-gradient(0deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.1) 40%, transparent 100%) !important;
   }
@@ -913,7 +906,7 @@ input {
     transform: rotate(var(--fan-angle)) translateY(var(--fan-y));
     transform-origin: bottom center;
     margin: 0 2px;
-    transition: transform 0.5s cubic-bezier(.23,1,.32,1), border-color 0.3s ease, box-shadow 0.4s ease, margin 0.4s ease;
+    transition: transform 0.8s cubic-bezier(.25,.46,.45,.94), border-color 0.4s ease, box-shadow 0.6s ease, margin 0.6s ease;
   }
   #my-hand-area .hand-area .card-container.selectable:hover {
     transform: rotate(0deg) translateY(-36px) scale(1.1) !important;
@@ -1000,24 +993,24 @@ input {
 @keyframes dealCard {
   0% {
     opacity: 0;
-    transform: translate(40px, 80px) rotate(15deg) scale(0.6);
+    transform: translateY(60px) scale(0.7);
     filter: blur(2px);
   }
-  30% {
-    opacity: 0.7;
+  40% {
+    opacity: 0.8;
     filter: blur(0px);
   }
-  70% {
+  75% {
     opacity: 1;
-    transform: translate(0, calc(var(--fan-y, 0px) - 4px)) rotate(var(--fan-angle, 0deg)) scale(1.02);
+    transform: translateY(calc(var(--fan-y, 0px) - 3px)) scale(1.01);
   }
   100% {
     opacity: 1;
-    transform: translate(0, var(--fan-y, 0px)) rotate(var(--fan-angle, 0deg)) scale(1);
+    transform: translateY(var(--fan-y, 0px)) scale(1);
   }
 }
 .card-container.deal-anim {
-  animation: dealCard 0.7s cubic-bezier(.23,1,.32,1) forwards;
+  animation: dealCard 1s cubic-bezier(.25,.46,.45,.94) forwards;
   animation-delay: var(--deal-delay, 0s);
   opacity: 0;
 }
@@ -1668,7 +1661,7 @@ input {
       <button class="end-game-btn" id="end-game-btn" onclick="doEndGame()" style="display:none;">Завершить</button>
     </div>
     <div class="game-body" id="game-body"></div>
-    <div id="my-hand-area" style="width:100%;flex-shrink:0;padding:30px 0 24px;background:linear-gradient(0deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.1) 40%, transparent 100%);overflow:visible;">
+    <div id="my-hand-area" style="width:100%;flex-shrink:0;padding:30px 0 48px;background:linear-gradient(0deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.1) 40%, transparent 100%);overflow:visible;">
       <div class="hand-area" id="my-hand"></div>
     </div>
   </div>
@@ -2320,10 +2313,8 @@ function applyFanStyle(el, index, total) {
   if (window.innerWidth <= 600) return; // no fan on mobile
   const mid = (total - 1) / 2;
   const offset = index - mid;
-  const maxAngle = Math.min(3.5, 18 / total); // gentler angle per card
-  const angle = offset * maxAngle;
-  const curve = offset * offset * 1.8; // softer parabolic rise
-  el.style.setProperty('--fan-angle', angle + 'deg');
+  const curve = offset * offset * 1.8; // parabolic arc, no rotation
+  el.style.setProperty('--fan-angle', '0deg');
   el.style.setProperty('--fan-y', curve + 'px');
   el.style.zIndex = total - Math.abs(Math.round(offset));
 }
