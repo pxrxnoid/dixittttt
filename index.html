@@ -1141,6 +1141,179 @@ input {
   .voting-grid .card-container { width: 70px; min-width: 70px; height: 98px; }
 }
 
+/* ============================================================
+   TIMER TOGGLES
+   ============================================================ */
+.timer-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 300px;
+}
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border-radius: 10px;
+  border: 1px solid var(--text-muted);
+  transition: border-color var(--transition);
+}
+.toggle-row:hover { border-color: var(--gold-dim); }
+.toggle-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 42px;
+  height: 24px;
+  background: var(--bg-deep);
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+.toggle-row input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  transition: transform 0.3s, background 0.3s;
+}
+.toggle-row input[type="checkbox"]:checked {
+  background: var(--gold-dim);
+}
+.toggle-row input[type="checkbox"]:checked::after {
+  transform: translateX(18px);
+  background: var(--gold);
+}
+.toggle-label {
+  font-size: 14px;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+/* ============================================================
+   ENHANCED CARD ANIMATIONS
+   ============================================================ */
+.card-container {
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, opacity 0.3s ease;
+}
+.card-container.selectable {
+  cursor: pointer;
+}
+.card-container.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 20px var(--gold-glow), 0 0 40px rgba(232,168,62,0.15), 0 8px 24px rgba(0,0,0,0.4);
+  transform: translateY(-8px) scale(1.03);
+}
+
+/* Phase label glow */
+.phase-label {
+  text-shadow: 0 0 20px rgba(232,168,62,0.3);
+}
+
+/* Better button hover states */
+.btn {
+  transition: transform var(--transition), box-shadow var(--transition), filter var(--transition);
+}
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 28px var(--gold-glow);
+    filter: brightness(1.1);
+  }
+  .btn--secondary:hover:not(:disabled) {
+    border-color: var(--text-dim);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+}
+
+/* Smooth screen transitions */
+.screen {
+  transition: opacity 0.4s ease;
+}
+
+/* Game over confetti-like decoration */
+.game-over-banner {
+  text-shadow: 0 0 30px rgba(240,192,96,0.4);
+  animation: winnerPulse 2s ease-in-out infinite;
+}
+@keyframes winnerPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+/* Result card hover */
+@media (hover: hover) {
+  .result-card-wrapper:hover .card-container {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+}
+
+/* Lobby player list entrance animation */
+.player-list-item {
+  animation: slideIn 0.3s ease-out;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Score row highlight for points */
+.score-row .points:not(.zero) {
+  text-shadow: 0 0 8px rgba(86,211,100,0.3);
+}
+
+/* Leaderboard entry subtle hover */
+@media (hover: hover) {
+  .lb-entry:hover {
+    transform: translateX(4px);
+    transition: transform 0.2s ease;
+  }
+}
+
+/* Clue display decoration */
+.clue-display {
+  background: rgba(232,168,62,0.05);
+  border-radius: 8px;
+}
+
+/* Voting grid card hover */
+@media (hover: hover) {
+  .voting-grid .card-container.selectable:hover {
+    transform: translateY(-8px) scale(1.05);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    border-color: var(--gold-dim);
+  }
+}
+
+/* Status bar improvement */
+.status-bar {
+  backdrop-filter: blur(8px);
+  background: rgba(28,35,51,0.9);
+}
+
+/* Waiting dots animation improvement */
+.waiting-msg {
+  line-height: 1.6;
+}
+
+/* Room code box hover */
+@media (hover: hover) {
+  .room-code-box:hover {
+    border-color: var(--gold);
+    box-shadow: 0 0 20px rgba(232,168,62,0.1);
+  }
+}
+
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
@@ -1170,6 +1343,16 @@ input {
       <button class="score-option" data-score="54" onclick="pickScore(this)">54</button>
       <button class="score-option" data-score="67" onclick="pickScore(this)">67</button>
       <input class="score-option" id="custom-score" type="number" min="1" max="999" placeholder="своё" style="width:72px;text-align:center;border:1px solid var(--text-muted);border-radius:8px;font-size:16px;padding:4px 8px;background:var(--bg);color:var(--text);" onfocus="pickCustomScore()" oninput="pickCustomScore()">
+    </div>
+    <div class="timer-toggles mb-16">
+      <label class="toggle-row">
+        <input type="checkbox" id="toggle-st-timer" checked>
+        <span class="toggle-label">Таймер рассказчика (60 сек)</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="toggle-act-timer" checked>
+        <span class="toggle-label">Таймер блеф/голосование (30 сек)</span>
+      </label>
     </div>
     <button class="btn" id="create-btn" onclick="doCreate()">Создать</button>
     <button class="btn btn--secondary btn--small mt-12" onclick="showTitle()">Назад</button>
@@ -1309,10 +1492,12 @@ const NET = {
   myName: '',
   myIdx: -1,
   isCreator: false,
+  intentionalDisconnect: false,
 };
 
 let localState = null;
 let selectedCard = null;
+let serverImageUrls = []; // URLs like /img/ABCD/0, filled after upload or join
 
 // ============================================================
 // SCREEN MANAGEMENT
@@ -1341,7 +1526,7 @@ function showScreen(id) {
 
 function clearSession() {
   sessionStorage.removeItem('xaxit-session');
-  history.replaceState(null, '', location.pathname);
+  history.replaceState(null, '', '/');
 }
 
 function saveSession() {
@@ -1352,9 +1537,12 @@ function saveSession() {
 }
 
 function showTitle() {
+  NET.intentionalDisconnect = true;
   clearSession();
   if (NET.socket) { NET.socket.close(); NET.socket = null; }
+  serverImageUrls = [];
   showScreen('title-screen');
+  history.pushState({ screen: 'title' }, '', '/');
 }
 
 function showCreate() { showScreen('create-screen'); }
@@ -1428,7 +1616,7 @@ function createCardElement(cardId, opts = {}) {
   const img = document.createElement('img');
   // cardId is like "card_3" → index 3
   const idx = parseInt(cardId.split('_')[1]);
-  img.src = IMAGE_FILES[idx];
+  img.src = serverImageUrls[idx] || IMAGE_FILES[idx];
   img.draggable = false;
   div.appendChild(img);
   if (opts.label) {
@@ -1441,7 +1629,7 @@ function createCardElement(cardId, opts = {}) {
 }
 
 function copyCode() {
-  navigator.clipboard.writeText(NET.roomCode).catch(() => {});
+  navigator.clipboard.writeText(location.origin + '/join/' + NET.roomCode).catch(() => {});
   const toast = document.getElementById('copied-toast');
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 1500);
@@ -1497,6 +1685,7 @@ function removeBot(idx) {
 // WEBSOCKET CONNECTION
 // ============================================================
 function connectToRoom(roomCode, onOpen) {
+  NET.intentionalDisconnect = false;
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(`${protocol}//${location.host}/ws/${roomCode}`);
   NET.socket = ws;
@@ -1509,10 +1698,11 @@ function connectToRoom(roomCode, onOpen) {
     onServerMessage(data);
   };
   ws.onclose = () => {
-    // Auto-reconnect if we have a session
+    if (NET.intentionalDisconnect) return;
     const s = sessionStorage.getItem('xaxit-session');
     if (s) {
       setTimeout(() => {
+        if (NET.intentionalDisconnect) return;
         const { roomCode: rc, playerName } = JSON.parse(s);
         if (rc) connectToRoom(rc, () => {
           NET.socket.send(JSON.stringify({ type: 'rejoin', name: playerName }));
@@ -1523,26 +1713,70 @@ function connectToRoom(roomCode, onOpen) {
   ws.onerror = () => {};
 }
 
+// Browser back/forward navigation
+window.addEventListener('popstate', (e) => {
+  if (!e.state || e.state.screen === 'title') {
+    NET.intentionalDisconnect = true;
+    sessionStorage.removeItem('xaxit-session');
+    if (NET.socket) { NET.socket.close(); NET.socket = null; }
+    serverImageUrls = [];
+    showScreen('title-screen');
+  }
+});
+
 function sendMsg(msg) {
   if (NET.socket && NET.socket.readyState === WebSocket.OPEN) {
     NET.socket.send(JSON.stringify(msg));
   }
 }
 
-function doCreate() {
+async function doCreate() {
   const name = document.getElementById('create-name').value.trim();
   if (!name) return;
   const status = document.getElementById('create-status');
   status.style.display = 'block';
-  status.textContent = 'Подключение...';
+  status.textContent = 'Загрузка картинок...';
   document.getElementById('create-btn').disabled = true;
 
   NET.myName = name;
   NET.isCreator = true;
   const code = genRoomCode();
 
+  // Upload images to server via HTTP
+  try {
+    const formData = new FormData();
+    for (let i = 0; i < IMAGE_FILES.length; i++) {
+      const src = IMAGE_FILES[i];
+      let blob;
+      if (src.startsWith('data:')) {
+        const res = await fetch(src);
+        blob = await res.blob();
+      } else {
+        const res = await fetch(src);
+        blob = await res.blob();
+      }
+      formData.append('images', blob, 'img_' + i + '.jpg');
+    }
+    const resp = await fetch('/upload/' + code, { method: 'POST', body: formData });
+    const data = await resp.json();
+    serverImageUrls = data.urls;
+  } catch (e) {
+    status.textContent = 'Ошибка загрузки картинок';
+    document.getElementById('create-btn').disabled = false;
+    return;
+  }
+
+  // Read timer settings
+  const stTimerOn = document.getElementById('toggle-st-timer')?.checked ?? true;
+  const actTimerOn = document.getElementById('toggle-act-timer')?.checked ?? true;
+
+  status.textContent = 'Подключение...';
   connectToRoom(code, () => {
-    sendMsg({ type: 'create', name, winScore: getSelectedScore(), imageFiles: IMAGE_FILES });
+    sendMsg({
+      type: 'create', name, winScore: getSelectedScore(),
+      imageCount: serverImageUrls.length,
+      settings: { storytellerTimer: stTimerOn, actionTimer: actTimerOn }
+    });
     status.style.display = 'none';
     document.getElementById('create-btn').disabled = false;
   });
@@ -1579,7 +1813,7 @@ function requestNextRound() {
 // ============================================================
 function showLobby() {
   document.getElementById('lobby-code').textContent = NET.roomCode;
-  history.replaceState(null, '', '#' + NET.roomCode);
+  history.replaceState({screen:'room', room: NET.roomCode}, '', '/room/' + NET.roomCode);
   updateLobbyUI();
   showScreen('lobby-screen');
 }
@@ -1626,7 +1860,7 @@ function onServerMessage(data) {
   if (data.type === 'joined') {
     NET.myIdx = data.playerIdx;
     NET.isCreator = data.playerIdx === 0;
-    history.replaceState(null, '', '#' + NET.roomCode);
+    history.replaceState({screen:'room', room: NET.roomCode}, '', '/room/' + NET.roomCode);
     saveSession();
     return;
   }
@@ -1638,7 +1872,7 @@ function onServerMessage(data) {
   }
   if (data.type === 'lobby') {
     localState = data;
-    if (data.imageFiles) IMAGE_FILES = data.imageFiles;
+    if (data.imageCount) serverImageUrls = Array.from({length: data.imageCount}, (_, i) => '/img/' + data.roomCode + '/' + i);
     document.getElementById('lobby-code').textContent = data.roomCode;
     document.getElementById('join-status').style.display = 'none';
     document.getElementById('join-btn').disabled = false;
@@ -1681,10 +1915,10 @@ function updateTimer(state) {
   const wrap = document.getElementById('gh-timer-wrap');
   const fill = document.getElementById('gh-timer-fill');
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  if (state.phase === 'storyteller' && state.timerRemaining != null) {
+  if (state.timerRemaining != null && state.timerTotal) {
     wrap.style.display = '';
     const endTime = Date.now() + state.timerRemaining;
-    const total = 60000;
+    const total = state.timerTotal;
     const tick = () => {
       const left = Math.max(0, endTime - Date.now());
       const pct = (left / total) * 100;
@@ -2072,7 +2306,7 @@ function renderResults(body, state) {
       html += `<div class="result-card-wrapper">`;
       html += `<div class="card-container${isSt ? ' storyteller-card' : ''}" style="cursor:default;">`;
       const idx = parseInt(entry.cardId.split('_')[1]);
-      html += `<img src="${IMAGE_FILES[idx]}" draggable="false" style="width:100%;height:100%;display:block;object-fit:cover;">`;
+      html += `<img src="${serverImageUrls[idx] || ''}" draggable="false" style="width:100%;height:100%;display:block;object-fit:cover;">`;
       html += `</div>`;
       html += `<div class="owner-label${isSt ? ' storyteller' : ''}">${entry.ownerName}${isSt ? ' ★' : ''}</div>`;
       if (entry.voters.length > 0) {
@@ -2112,7 +2346,7 @@ function renderResults(body, state) {
       html += `<div class="result-card-wrapper">`;
       html += `<div class="card-container${isSt ? ' storyteller-card' : ''}" style="cursor:default;">`;
       const idx = parseInt(entry.cardId.split('_')[1]);
-      html += `<img src="${IMAGE_FILES[idx]}" draggable="false" style="width:100%;height:100%;display:block;object-fit:cover;">`;
+      html += `<img src="${serverImageUrls[idx] || ''}" draggable="false" style="width:100%;height:100%;display:block;object-fit:cover;">`;
       html += `</div>`;
       html += `<div class="owner-label${isSt ? ' storyteller' : ''}">${entry.ownerName}${isSt ? ' ★' : ''}</div>`;
       if (entry.voters.length > 0) {
@@ -2493,7 +2727,10 @@ async function adminDeleteCustom(id) {
 (async () => {
   await initImages();
 
-  const hash = location.hash.replace('#', '').toUpperCase();
+  // Parse URL path for routing
+  const pathMatch = location.pathname.match(/^\/(room|join)\/([A-Z0-9]{4})$/i);
+  const routeCode = pathMatch ? pathMatch[2].toUpperCase() : null;
+  const routeType = pathMatch ? pathMatch[1] : null;
 
   // Try reconnect from saved session
   const raw = sessionStorage.getItem('xaxit-session');
@@ -2510,9 +2747,18 @@ async function adminDeleteCustom(id) {
     } catch {}
   }
 
-  // If URL has a room code, pre-fill join screen
+  // If URL has a room code via /join/CODE or /room/CODE
+  if (routeCode) {
+    document.getElementById('join-code').value = routeCode;
+    showJoin();
+    return;
+  }
+
+  // Also support old hash-based URLs
+  const hash = location.hash.replace('#', '').toUpperCase();
   if (hash && hash.length === 4) {
     document.getElementById('join-code').value = hash;
+    history.replaceState(null, '', '/join/' + hash);
     showJoin();
     return;
   }
