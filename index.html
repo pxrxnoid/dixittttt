@@ -479,13 +479,13 @@ input {
 .score-switch {
   display: flex;
   gap: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
-  border: 1px solid var(--text-muted);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  border: 1px solid rgba(74,80,104,0.3);
 }
 .score-option {
-  padding: 10px 22px;
+  flex: 1;
+  padding: 10px 0;
   background: var(--bg-surface);
   color: var(--text-dim);
   font-size: 15px;
@@ -493,11 +493,11 @@ input {
   cursor: pointer;
   transition: all var(--transition);
   border: none;
+  text-align: center;
 }
 .score-option.active {
   background: linear-gradient(135deg, var(--gold), var(--gold-dim));
   color: var(--bg-deep);
-  text-shadow: 0 1px 0 rgba(255,255,255,0.15);
 }
 
 /* ============================================================
@@ -907,7 +907,7 @@ input {
     margin: 0 6px;
     transition: transform 0.5s cubic-bezier(.4,0,.2,1), border-color 0.15s ease, box-shadow 0.35s ease, margin 0.5s cubic-bezier(.4,0,.2,1);
   }
-  #my-hand-area .hand-area .card-container.selectable:hover {
+  #my-hand-area .hand-area .card-container.selectable:not(.selected):hover {
     transform: translateY(-32px) scale(1.08) !important;
     z-index: 20;
     margin: 0 14px;
@@ -917,15 +917,16 @@ input {
       0 0 0 1px rgba(255,255,255,0.12);
     border-color: rgba(255,255,255,0.3);
   }
-  #my-hand-area .hand-area .card-container.selected {
+  #my-hand-area .hand-area .card-container.selected,
+  #my-hand-area .hand-area .card-container.selected:hover {
     transform: translateY(-36px) scale(1.1) !important;
     z-index: 21;
     margin: 0 14px;
-    border-color: var(--gold);
+    border-color: var(--gold) !important;
     box-shadow:
       0 0 30px var(--gold-glow),
       0 20px 50px rgba(0,0,0,0.6),
-      0 0 60px rgba(240,180,41,0.1);
+      0 0 60px rgba(240,180,41,0.1) !important;
     transition: transform 0.35s cubic-bezier(.4,0,.2,1), border-color 0s, box-shadow 0s, margin 0.35s cubic-bezier(.4,0,.2,1);
   }
 }
@@ -935,11 +936,11 @@ input {
   min-width: var(--card-w);
   height: var(--card-h);
   border-radius: var(--card-radius);
-  overflow: hidden;
+  overflow: visible;
   background: #1a1a2e;
   border: 2px solid rgba(255,255,255,0.08);
   cursor: pointer;
-  transition: transform 0.45s cubic-bezier(.4,0,.2,1), border-color 0.15s ease, box-shadow 0.3s ease, margin 0.4s ease;
+  transition: transform 0.5s cubic-bezier(.4,0,.2,1), border-color 0.15s ease, box-shadow 0.35s ease, margin 0.5s cubic-bezier(.4,0,.2,1);
   position: relative;
   flex-shrink: 0;
   box-shadow:
@@ -948,7 +949,7 @@ input {
     inset 0 1px 0 rgba(255,255,255,0.06);
 }
 @media (hover: hover) {
-  .card-container.selectable:hover {
+  .card-container.selectable:not(.selected):hover {
     transform: translateY(-12px) scale(1.03);
     border-color: rgba(255,255,255,0.25);
     box-shadow:
@@ -957,14 +958,15 @@ input {
       0 0 20px rgba(240,180,41,0.1);
   }
 }
-.card-container:active { transform: scale(0.97); }
-.card-container.selected {
+.card-container.selected,
+.card-container.selected:hover {
   border-color: var(--gold);
   box-shadow:
     0 0 20px var(--gold-glow),
     0 0 50px rgba(240,180,41,0.12),
     0 12px 32px rgba(0,0,0,0.5);
   transform: translateY(-14px) scale(1.05);
+  transition: transform 0.3s cubic-bezier(.4,0,.2,1), border-color 0s, box-shadow 0s;
 }
 .card-container.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(0.4) brightness(0.7); }
 .card-container.storyteller-card {
@@ -978,6 +980,7 @@ input {
   width: 100%; height: 100%;
   display: block;
   object-fit: cover;
+  border-radius: var(--card-radius);
 }
 .card-number {
   position: absolute;
@@ -1036,7 +1039,7 @@ input {
   gap: 16px;
   justify-content: center;
   max-width: 90vw;
-  overflow-x: auto;
+  overflow: visible;
 }
 .result-card-wrapper {
   display: flex;
@@ -1483,7 +1486,7 @@ input {
   padding: 10px 14px;
   background: var(--bg-surface);
   border-radius: 10px;
-  border: 1px solid var(--text-muted);
+  border: 1px solid rgba(74,80,104,0.3);
   transition: border-color var(--transition);
 }
 .toggle-row:hover { border-color: var(--gold-dim); }
@@ -1598,38 +1601,39 @@ input {
 
   <!-- CREATE GAME -->
   <div id="create-screen" class="screen">
-    <h2 style="font-size:24px;color:var(--gold);margin-bottom:16px;">Создать игру</h2>
-    <input class="input-field mb-16" id="create-name" type="text" placeholder="Твой никнейм" maxlength="20" autocomplete="off">
-    <p class="text-dim text-small mb-8">Играть до:</p>
-    <div class="score-switch mb-16">
-      <button class="score-option active" data-score="32" onclick="pickScore(this)">32</button>
-      <button class="score-option" data-score="54" onclick="pickScore(this)">54</button>
-      <button class="score-option" data-score="67" onclick="pickScore(this)">67</button>
-      <input class="score-option" id="custom-score" type="number" min="1" max="999" placeholder="своё" style="width:72px;text-align:center;border:1px solid var(--text-muted);border-radius:8px;font-size:16px;padding:4px 8px;background:var(--bg);color:var(--text);" onfocus="pickCustomScore()" oninput="pickCustomScore()">
-    </div>
-    <div class="timer-toggles mb-16">
-      <label class="toggle-row">
+    <div style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:14px;">
+      <h2 style="font-size:22px;color:var(--gold);margin-bottom:4px;">Создать игру</h2>
+      <input class="input-field" id="create-name" type="text" placeholder="Никнейм" maxlength="20" autocomplete="off" style="max-width:100%;">
+      <div class="score-switch" style="width:100%;">
+        <button class="score-option active" data-score="32" onclick="pickScore(this)">32</button>
+        <button class="score-option" data-score="54" onclick="pickScore(this)">54</button>
+        <button class="score-option" data-score="67" onclick="pickScore(this)">67</button>
+        <input class="score-option" id="custom-score" type="number" min="1" max="999" placeholder="своё" style="width:72px;text-align:center;font-size:15px;padding:4px 0;background:transparent;color:var(--text);border:none;" onfocus="pickCustomScore()" oninput="pickCustomScore()">
+      </div>
+      <label class="toggle-row" style="width:100%;">
         <input type="checkbox" id="toggle-st-timer" checked>
-        <span class="toggle-label">Таймер рассказчика (60 сек)</span>
+        <span class="toggle-label">Таймер хода (60с)</span>
       </label>
-      <label class="toggle-row">
+      <label class="toggle-row" style="width:100%;">
         <input type="checkbox" id="toggle-act-timer" checked>
-        <span class="toggle-label">Таймер блеф/голосование (30 сек)</span>
+        <span class="toggle-label">Таймер блефа (30с)</span>
       </label>
+      <button class="btn" id="create-btn" onclick="doCreate()" style="width:100%;margin-top:4px;">Создать</button>
+      <button class="btn btn--secondary btn--small" onclick="showTitle()">Назад</button>
+      <p id="create-status" class="text-dim text-small" style="display:none;"></p>
     </div>
-    <button class="btn" id="create-btn" onclick="doCreate()">Создать</button>
-    <button class="btn btn--secondary btn--small mt-12" onclick="showTitle()">Назад</button>
-    <p id="create-status" class="text-dim text-small mt-12" style="display:none;"></p>
   </div>
 
   <!-- JOIN GAME -->
   <div id="join-screen" class="screen">
-    <h2 style="font-size:24px;color:var(--gold);margin-bottom:16px;">Присоединиться</h2>
-    <input class="input-field mb-16" id="join-name" type="text" placeholder="Твой никнейм" maxlength="20" autocomplete="off">
-    <input class="input-field mb-16" id="join-code" type="text" placeholder="Код комнаты" maxlength="4" autocomplete="off" style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:20px;">
-    <button class="btn" id="join-btn" onclick="doJoin()">Войти</button>
-    <button class="btn btn--secondary btn--small mt-12" onclick="showTitle()">Назад</button>
-    <p id="join-status" class="text-dim text-small mt-12" style="display:none;"></p>
+    <div style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:14px;">
+      <h2 style="font-size:22px;color:var(--gold);margin-bottom:4px;">Присоединиться</h2>
+      <input class="input-field" id="join-name" type="text" placeholder="Никнейм" maxlength="20" autocomplete="off" style="max-width:100%;">
+      <input class="input-field" id="join-code" type="text" placeholder="Код комнаты" maxlength="4" autocomplete="off" style="max-width:100%;text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:20px;">
+      <button class="btn" id="join-btn" onclick="doJoin()" style="width:100%;">Войти</button>
+      <button class="btn btn--secondary btn--small" onclick="showTitle()">Назад</button>
+      <p id="join-status" class="text-dim text-small" style="display:none;"></p>
+    </div>
   </div>
 
   <!-- LOBBY -->
