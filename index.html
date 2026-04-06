@@ -1580,6 +1580,124 @@ input {
   text-shadow: 0 0 8px rgba(74,222,128,0.3);
 }
 
+/* Sticker system */
+.sticker-toggle {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 100;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--text-muted);
+  color: var(--text);
+  font-size: 20px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  transition: opacity 0.2s ease, transform 0.2s ease, border-color 0.2s;
+  line-height: 1;
+}
+.sticker-toggle.visible { display: flex; }
+.sticker-toggle.on-cooldown {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.sticker-toggle:hover { border-color: var(--gold-dim); }
+
+.sticker-picker {
+  position: fixed;
+  bottom: 72px;
+  left: 16px;
+  z-index: 110;
+  background: rgba(20,26,53,0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(74,80,104,0.3);
+  border-radius: 14px;
+  padding: 10px;
+  display: none;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.sticker-picker.open { display: block; }
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.sticker-grid button {
+  width: 56px; height: 56px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid rgba(74,80,104,0.2);
+  cursor: pointer;
+  padding: 4px;
+  transition: transform 0.15s, border-color 0.15s, background 0.15s;
+}
+.sticker-grid button:hover {
+  transform: scale(1.15);
+  border-color: var(--gold-dim);
+  background: var(--bg-hover);
+}
+.sticker-grid button:active { transform: scale(0.95); }
+.sticker-grid button img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* Floating sticker animation */
+.floating-sticker {
+  position: fixed;
+  z-index: 300;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  animation: stickerPopIn 0.35s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+.floating-sticker img {
+  width: 120px; height: 120px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.6));
+  border-radius: 0;
+}
+.floating-sticker .sticker-sender {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(0,0,0,0.7);
+  padding: 2px 10px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.floating-sticker.fade-out {
+  animation: stickerFadeUp 0.6s ease-in forwards;
+}
+@keyframes stickerPopIn {
+  0% { opacity: 0; transform: scale(0.2) rotate(calc(var(--rot, 0) * 1deg)); }
+  60% { opacity: 1; transform: scale(1.15) rotate(calc(var(--rot, 0) * 1deg)); }
+  100% { opacity: 1; transform: scale(1) rotate(calc(var(--rot, 0) * 1deg)); }
+}
+@keyframes stickerFadeUp {
+  0% { opacity: 1; transform: translateY(0) scale(1) rotate(calc(var(--rot, 0) * 1deg)); }
+  100% { opacity: 0; transform: translateY(-80px) scale(0.5) rotate(calc(var(--rot, 0) * 1deg)); }
+}
+
+@media (max-width: 480px) {
+  .sticker-toggle {
+    width: 34px; height: 34px; font-size: 16px;
+    bottom: auto; top: 48px; left: auto; right: 46px;
+  }
+  .sticker-picker {
+    bottom: auto; top: 86px; left: auto; right: 8px;
+  }
+  .sticker-grid button { width: 48px; height: 48px; }
+  .floating-sticker img { width: 90px; height: 90px; }
+}
+
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
@@ -1679,6 +1797,12 @@ input {
   <div id="scores-list"></div>
 </div>
 
+<!-- Sticker picker -->
+<button class="sticker-toggle" id="sticker-toggle" onclick="toggleStickerPicker()">😜</button>
+<div class="sticker-picker" id="sticker-picker">
+  <div class="sticker-grid" id="sticker-grid"></div>
+</div>
+
 <!-- Round log panel -->
 <button class="log-toggle" id="log-toggle" onclick="toggleLog()">📋</button>
 <div class="log-panel" id="log-panel">
@@ -1776,9 +1900,12 @@ function showScreen(id) {
   const panel = document.getElementById('scores-panel');
   const logToggle = document.getElementById('log-toggle');
   const logPanel = document.getElementById('log-panel');
+  const stickerToggle = document.getElementById('sticker-toggle');
+  const stickerPicker = document.getElementById('sticker-picker');
   if (id === 'game-screen') {
     toggle.classList.add('visible');
     logToggle.classList.add('visible');
+    stickerToggle.classList.add('visible');
     if (window.innerWidth > 768) {
       panel.classList.add('open');
       logPanel.classList.add('open');
@@ -1788,6 +1915,8 @@ function showScreen(id) {
     panel.classList.remove('open');
     logToggle.classList.remove('visible');
     logPanel.classList.remove('open');
+    stickerToggle.classList.remove('visible');
+    stickerPicker.classList.remove('open');
   }
 }
 
@@ -2182,11 +2311,85 @@ function onServerMessage(data) {
     renderGame(data);
     return;
   }
+  if (data.type === 'sticker') {
+    showFloatingSticker(data);
+    return;
+  }
   if (data.type === 'error') {
     showStatus(data.msg);
     return;
   }
 }
+
+// ============================================================
+// STICKER SYSTEM
+// ============================================================
+const STICKERS = ['burger','ivanhitler','kobyakov','kuplinov','litvin','locked','malena','simple'];
+let lastStickerSent = 0;
+const activeStickers = [];
+const MAX_STICKERS = 6;
+
+(function buildStickerGrid() {
+  const grid = document.getElementById('sticker-grid');
+  if (!grid) return;
+  STICKERS.forEach(id => {
+    const btn = document.createElement('button');
+    btn.innerHTML = '<img src="/emojis/' + id + '.webp" alt="' + id + '">';
+    btn.onclick = () => sendSticker(id);
+    grid.appendChild(btn);
+  });
+})();
+
+function toggleStickerPicker() {
+  const picker = document.getElementById('sticker-picker');
+  picker.classList.toggle('open');
+}
+
+function sendSticker(stickerId) {
+  const now = Date.now();
+  if (now - lastStickerSent < 2100) return;
+  lastStickerSent = now;
+  sendMsg({ type: 'sticker', stickerId });
+  document.getElementById('sticker-picker').classList.remove('open');
+  const btn = document.getElementById('sticker-toggle');
+  btn.classList.add('on-cooldown');
+  setTimeout(() => btn.classList.remove('on-cooldown'), 2100);
+}
+
+function showFloatingSticker(data) {
+  const el = document.createElement('div');
+  el.className = 'floating-sticker';
+  const rot = (Math.random() - 0.5) * 24;
+  el.style.setProperty('--rot', rot);
+  const x = 10 + Math.random() * 70;
+  const y = 10 + Math.random() * 50;
+  el.style.left = x + 'vw';
+  el.style.top = y + 'vh';
+  el.innerHTML = '<img src="/emojis/' + data.stickerId + '.webp"><span class="sticker-sender">' + data.senderName + '</span>';
+  document.body.appendChild(el);
+  activeStickers.push(el);
+  if (activeStickers.length > MAX_STICKERS) {
+    const old = activeStickers.shift();
+    if (old.parentNode) old.remove();
+  }
+  setTimeout(() => {
+    el.classList.add('fade-out');
+    setTimeout(() => {
+      if (el.parentNode) el.remove();
+      const idx = activeStickers.indexOf(el);
+      if (idx >= 0) activeStickers.splice(idx, 1);
+    }, 600);
+  }, 1800);
+}
+
+// Close sticker picker on outside click
+document.addEventListener('click', e => {
+  const picker = document.getElementById('sticker-picker');
+  const toggle = document.getElementById('sticker-toggle');
+  if (picker.classList.contains('open') && !picker.contains(e.target) && e.target !== toggle) {
+    picker.classList.remove('open');
+  }
+});
 
 // ============================================================
 // GAME RENDERING

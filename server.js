@@ -133,6 +133,7 @@ class GameRoom {
     this.roundLog = [];
     this.usedCards = new Set();
     this.settings = { storytellerTimer: true, actionTimer: true };
+    this.stickerCooldowns = {};
     // Timers
     this.stTimer = null; this.stDeadline = null;
     this.ctTimer = null; this.ctDeadline = null;
@@ -157,7 +158,20 @@ class GameRoom {
       case 'contribute': return this.handleContribute(ws, data);
       case 'vote': return this.handleVote(ws, data);
       case 'nextRound': return this.handleNextRound(ws);
+      case 'sticker': return this.handleSticker(ws, data);
     }
+  }
+
+  handleSticker(ws, data) {
+    const VALID = ['burger','ivanhitler','kobyakov','kuplinov','litvin','locked','malena','simple'];
+    if (!data.stickerId || !VALID.includes(data.stickerId)) return;
+    const pidx = this.getPlayerIdx(ws);
+    if (pidx < 0) return;
+    const now = Date.now();
+    if (this.stickerCooldowns[pidx] && now - this.stickerCooldowns[pidx] < 2000) return;
+    this.stickerCooldowns[pidx] = now;
+    const msg = JSON.stringify({ type: 'sticker', senderName: this.players[pidx].name, stickerId: data.stickerId });
+    for (const c of this.conns) { try { c.send(msg); } catch {} }
   }
 
   onClose(ws) {
