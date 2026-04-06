@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>XAxit — Игра ассоциаций</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
    RESET & BASE
@@ -12,10 +12,11 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-deep: #0a0e1a;
-  --bg-card: #131829;
-  --bg-surface: #1a2038;
-  --bg-hover: #222a48;
+  --bg-deep: #0c1117;
+  --bg-card: #151c28;
+  --bg-surface: #1a2236;
+  --bg-hover: #222e48;
+  --bg-felt: #14261a;
   --gold: #f0b429;
   --gold-dim: #c4911f;
   --gold-glow: rgba(240, 180, 41, 0.35);
@@ -28,9 +29,10 @@
   --accent-rose: #ff8a75;
   --success: #4ade80;
   --danger: #f43f5e;
-  --card-w: 130px;
-  --card-h: 182px;
-  --radius: 14px;
+  --card-w: 120px;
+  --card-h: 168px;
+  --card-radius: 8px;
+  --radius: 12px;
   --transition: 0.3s cubic-bezier(.4,0,.2,1);
 }
 
@@ -39,19 +41,19 @@ html, body {
   overflow: hidden;
   background: var(--bg-deep);
   color: var(--text);
-  font-family: 'Inter', sans-serif;
-  font-weight: 400;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
 
 h1, h2, h3 {
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
 }
 
 button {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Nunito', sans-serif;
   cursor: pointer;
   border: none;
   outline: none;
@@ -59,7 +61,7 @@ button {
 }
 
 input {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Nunito', sans-serif;
   outline: none;
 }
 
@@ -98,56 +100,94 @@ input {
    SHARED UI
    ============================================================ */
 .btn {
-  background: linear-gradient(135deg, #f5c542, var(--gold), var(--gold-dim));
-  color: var(--bg-deep);
-  font-weight: 700;
-  font-size: 15px;
-  padding: 14px 40px;
-  border-radius: 50px;
-  letter-spacing: 0.5px;
+  background: linear-gradient(180deg, #fcd34d 0%, var(--gold) 50%, #b8860b 100%);
+  color: #1a1205;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 13px 36px;
+  border-radius: 10px;
+  letter-spacing: 0.8px;
   transition: transform var(--transition), box-shadow var(--transition), filter var(--transition);
-  box-shadow: 0 4px 24px var(--gold-glow), inset 0 1px 0 rgba(255,255,255,0.25);
+  box-shadow:
+    0 4px 0 #8a6508,
+    0 6px 20px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.35);
   text-transform: uppercase;
-  text-shadow: 0 1px 0 rgba(0,0,0,0.1);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.15);
+  position: relative;
 }
-.btn:active { transform: scale(0.96); }
+.btn:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 #8a6508,
+    0 2px 8px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+}
 .btn:disabled { opacity: 0.35; pointer-events: none; filter: grayscale(0.5); }
 .btn--secondary {
-  background: var(--bg-surface);
+  background: linear-gradient(180deg, #2a3352, #1e2740);
   color: var(--text-dim);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  border: 1px solid var(--text-muted);
+  box-shadow:
+    0 3px 0 #111827,
+    0 4px 12px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  border: 1px solid rgba(74,80,104,0.4);
   text-transform: none;
-  font-weight: 500;
+  font-weight: 600;
   text-shadow: none;
 }
-.btn--small { font-size: 13px; padding: 10px 24px; }
+.btn--secondary:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #111827, inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.btn--small { font-size: 12px; padding: 10px 22px; }
 
 .phase-label {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 3px;
   color: var(--gold);
-  margin-bottom: 8px;
-  font-weight: 600;
-  text-shadow: 0 0 20px rgba(240,180,41,0.3);
+  margin-bottom: 6px;
+  font-weight: 700;
+  text-shadow: 0 0 20px rgba(240,180,41,0.4);
+  position: relative;
+  padding: 0 24px;
 }
+.phase-label::before, .phase-label::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-dim));
+}
+.phase-label::before { left: 0; }
+.phase-label::after { right: 0; transform: rotate(180deg); }
 
 .clue-display {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Playfair Display', serif;
   font-style: italic;
-  font-weight: 500;
+  font-weight: 400;
   font-size: 22px;
   color: var(--amber);
   text-align: center;
-  margin: 12px 0;
-  padding: 14px 28px;
-  border-left: 3px solid var(--gold-dim);
-  border-radius: 0 10px 10px 0;
+  margin: 8px 0;
+  padding: 16px 32px;
+  border: 1px solid rgba(240,180,41,0.2);
+  border-radius: var(--radius);
   max-width: 420px;
   word-break: break-word;
-  background: linear-gradient(135deg, rgba(240,180,41,0.08), rgba(240,180,41,0.02));
-  backdrop-filter: blur(4px);
+  background: radial-gradient(ellipse at 50% 50%, rgba(240,180,41,0.08) 0%, transparent 70%);
+  position: relative;
+}
+.clue-display::before {
+  content: '"';
+  position: absolute;
+  top: 4px; left: 12px;
+  font-size: 28px;
+  color: var(--gold-dim);
+  opacity: 0.4;
+  font-family: 'Playfair Display', serif;
 }
 .clue-display img.clue-gif {
   max-width: 200px;
@@ -249,19 +289,21 @@ input {
 }
 
 .input-field {
-  background: rgba(26,32,56,0.8);
-  border: 1px solid var(--text-muted);
-  border-radius: 10px;
-  padding: 13px 18px;
+  background: rgba(15,20,35,0.8);
+  border: 2px solid rgba(74,80,104,0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
   color: var(--text);
   font-size: 15px;
+  font-weight: 500;
   transition: border-color var(--transition), box-shadow var(--transition);
   width: 100%;
   max-width: 300px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
 }
 .input-field:focus {
   border-color: var(--gold);
-  box-shadow: 0 0 0 3px rgba(240,180,41,0.12);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 3px rgba(240,180,41,0.12);
 }
 
 .gap-12 { gap: 12px; }
@@ -469,8 +511,13 @@ input {
    ============================================================ */
 #game-screen {
   justify-content: flex-start;
-  padding: 0 0 8px 0;
+  padding: 0;
   overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 60%, rgba(30,80,50,0.25) 0%, transparent 70%),
+    radial-gradient(ellipse at 50% 100%, rgba(0,0,0,0.5) 0%, transparent 50%),
+    linear-gradient(180deg, #0c1117 0%, #122218 30%, #163020 50%, #122218 70%, #0c1117 100%);
+  background-attachment: fixed;
 }
 @media (max-width: 600px) {
   #game-screen {
@@ -493,11 +540,10 @@ input {
   }
   #game-screen #my-hand-area {
     flex-shrink: 0;
-    background: var(--bg-deep) !important;
+    background: linear-gradient(0deg, rgba(8,12,18,0.95) 0%, rgba(8,12,18,0.7) 60%, transparent 100%) !important;
     z-index: 10;
-    border-top: 1px solid rgba(74,80,104,0.4) !important;
-    padding: 8px 0 env(safe-area-inset-bottom, 4px) !important;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
+    border-top: none !important;
+    padding: 10px 0 env(safe-area-inset-bottom, 6px) !important;
     position: relative;
     overflow: visible !important;
   }
@@ -507,19 +553,19 @@ input {
     content: '';
     position: absolute;
     top: 0; bottom: 0;
-    width: 28px;
+    width: 24px;
     z-index: 20;
     pointer-events: none;
     transition: opacity 0.3s;
   }
   #game-screen #my-hand-area::before {
     left: 0;
-    background: linear-gradient(90deg, var(--bg-deep) 0%, transparent 100%);
+    background: linear-gradient(90deg, rgba(8,12,18,0.9) 0%, transparent 100%);
     opacity: var(--fade-left, 0);
   }
   #game-screen #my-hand-area::after {
     right: 0;
-    background: linear-gradient(-90deg, var(--bg-deep) 0%, transparent 100%);
+    background: linear-gradient(-90deg, rgba(8,12,18,0.9) 0%, transparent 100%);
     opacity: var(--fade-right, 1);
   }
   #game-screen #my-hand-area .hand-area {
@@ -537,8 +583,9 @@ input {
   }
   /* Mobile selected card pops up above hand */
   #game-screen #my-hand-area .hand-area .card-container.selected {
-    transform: translateY(-8px) scale(1.04);
+    transform: translateY(-10px) scale(1.05);
     z-index: 15;
+    box-shadow: 0 0 16px var(--gold-glow), 0 8px 20px rgba(0,0,0,0.4);
   }
 }
 
@@ -546,12 +593,12 @@ input {
   width: 100%;
   display: flex;
   align-items: center;
-  padding: 12px 20px;
-  background: linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.2));
+  padding: 10px 20px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 80%, transparent 100%);
   flex-shrink: 0;
   gap: 12px;
   flex-wrap: wrap;
-  border-bottom: 1px solid rgba(74,80,104,0.2);
+  border-bottom: none;
 }
 .gh-left {
   display: flex;
@@ -648,8 +695,11 @@ input {
 }
 .scores-panel.open { transform: translateX(0); }
 .scores-panel-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 15px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   color: var(--gold);
   margin-bottom: 4px;
 }
@@ -666,13 +716,14 @@ input {
   align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
-  background: rgba(0,0,0,0.2);
-  border-radius: 8px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 6px;
   font-size: 13px;
+  font-weight: 600;
 }
-.sp-entry.storyteller { border-left: 3px solid var(--gold); }
-.sp-entry .sp-name { font-weight: 500; }
-.sp-entry .sp-pts { color: var(--accent-blue); font-weight: 600; }
+.sp-entry.storyteller { border-left: 3px solid var(--gold); background: rgba(240,180,41,0.08); }
+.sp-entry .sp-name { font-weight: 600; }
+.sp-entry .sp-pts { color: var(--accent-blue); font-weight: 700; }
 .sp-entry.storyteller .sp-name { color: var(--gold); }
 
 /* Desktop: always show scores panel during game, hide toggle */
@@ -795,8 +846,9 @@ input {
 
 /* Waiting state */
 .waiting-msg {
-  font-family: 'Playfair Display', serif;
-  font-size: 22px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
   color: var(--text-dim);
   text-align: center;
   max-width: 320px;
@@ -842,36 +894,46 @@ input {
 
 /* Desktop fan layout for hand */
 @media (min-width: 601px) {
-  #my-hand-area { overflow: visible !important; padding-top: 24px !important; padding-bottom: 16px !important; }
+  #my-hand-area {
+    overflow: visible !important;
+    padding: 30px 0 24px !important;
+    border-top: none !important;
+    background: linear-gradient(0deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.1) 40%, transparent 100%) !important;
+  }
   #my-hand-area .hand-area {
     overflow: visible;
     flex-wrap: nowrap;
     gap: 0;
-    padding: 0 20px 10px;
+    padding: 0 40px 10px;
     justify-content: center;
-    perspective: 900px;
   }
   #my-hand-area .hand-area .card-container {
     --fan-angle: 0deg;
     --fan-y: 0px;
     transform: rotate(var(--fan-angle)) translateY(var(--fan-y));
     transform-origin: bottom center;
-    margin: 0 -8px;
-    transition: transform 0.4s cubic-bezier(.34,1.56,.64,1), border-color 0.25s ease, box-shadow 0.3s ease, margin 0.3s ease;
+    margin: 0 2px;
+    transition: transform 0.5s cubic-bezier(.23,1,.32,1), border-color 0.3s ease, box-shadow 0.4s ease, margin 0.4s ease;
   }
   #my-hand-area .hand-area .card-container.selectable:hover {
-    transform: rotate(0deg) translateY(-28px) scale(1.08) !important;
+    transform: rotate(0deg) translateY(-36px) scale(1.1) !important;
     z-index: 20;
-    margin: 0 6px;
-    box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.15);
-    border-color: rgba(255,255,255,0.4);
+    margin: 0 12px;
+    box-shadow:
+      0 20px 50px rgba(0,0,0,0.6),
+      0 0 30px rgba(240,180,41,0.15),
+      0 0 0 1px rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.3);
   }
   #my-hand-area .hand-area .card-container.selected {
-    transform: rotate(0deg) translateY(-32px) scale(1.1) !important;
+    transform: rotate(0deg) translateY(-40px) scale(1.12) !important;
     z-index: 21;
-    margin: 0 8px;
+    margin: 0 14px;
     border-color: var(--gold);
-    box-shadow: 0 0 28px var(--gold-glow), 0 16px 40px rgba(0,0,0,0.5);
+    box-shadow:
+      0 0 30px var(--gold-glow),
+      0 20px 50px rgba(0,0,0,0.6),
+      0 0 60px rgba(240,180,41,0.1);
   }
 }
 
@@ -879,32 +941,45 @@ input {
   width: var(--card-w);
   min-width: var(--card-w);
   height: var(--card-h);
-  border-radius: var(--radius);
+  border-radius: var(--card-radius);
   overflow: hidden;
-  background: var(--bg-card);
-  border: 2.5px solid rgba(74,80,104,0.4);
+  background: #1a1a2e;
+  border: 2px solid rgba(255,255,255,0.08);
   cursor: pointer;
-  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), border-color 0.25s ease, box-shadow 0.3s ease;
+  transition: transform 0.45s cubic-bezier(.23,1,.32,1), border-color 0.3s ease, box-shadow 0.4s ease, margin 0.3s ease;
   position: relative;
   flex-shrink: 0;
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.3),
+    0 6px 12px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.06);
 }
 @media (hover: hover) {
   .card-container.selectable:hover {
-    transform: translateY(-10px) scale(1.02);
-    border-color: rgba(255,255,255,0.35);
-    box-shadow: 0 12px 28px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.1);
+    transform: translateY(-12px) scale(1.03);
+    border-color: rgba(255,255,255,0.25);
+    box-shadow:
+      0 14px 36px rgba(0,0,0,0.45),
+      0 0 0 1px rgba(255,255,255,0.1),
+      0 0 20px rgba(240,180,41,0.1);
   }
 }
 .card-container:active { transform: scale(0.97); }
 .card-container.selected {
   border-color: var(--gold);
-  box-shadow: 0 0 24px var(--gold-glow), 0 0 48px rgba(240,180,41,0.15), 0 10px 28px rgba(0,0,0,0.4);
-  transform: translateY(-10px) scale(1.04);
+  box-shadow:
+    0 0 20px var(--gold-glow),
+    0 0 50px rgba(240,180,41,0.12),
+    0 12px 32px rgba(0,0,0,0.5);
+  transform: translateY(-14px) scale(1.05);
 }
-.card-container.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(0.3); }
+.card-container.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(0.4) brightness(0.7); }
 .card-container.storyteller-card {
-  box-shadow: 0 0 24px var(--gold-glow), 0 0 48px rgba(240,180,41,0.2);
-  border: 2.5px solid var(--gold);
+  box-shadow:
+    0 0 20px var(--gold-glow),
+    0 0 50px rgba(240,180,41,0.15),
+    0 6px 16px rgba(0,0,0,0.3);
+  border: 2px solid var(--gold);
 }
 .card-container img {
   width: 100%; height: 100%;
@@ -923,12 +998,26 @@ input {
 
 /* Card deal animation */
 @keyframes dealCard {
-  0% { opacity: 0; transform: translateY(60px) rotate(8deg) scale(0.7); }
-  60% { opacity: 1; }
-  100% { opacity: 1; transform: translateY(var(--fan-y, 0px)) rotate(var(--fan-angle, 0deg)) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translate(40px, 80px) rotate(15deg) scale(0.6);
+    filter: blur(2px);
+  }
+  30% {
+    opacity: 0.7;
+    filter: blur(0px);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(0, calc(var(--fan-y, 0px) - 4px)) rotate(var(--fan-angle, 0deg)) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, var(--fan-y, 0px)) rotate(var(--fan-angle, 0deg)) scale(1);
+  }
 }
 .card-container.deal-anim {
-  animation: dealCard 0.5s cubic-bezier(.34,1.56,.64,1) forwards;
+  animation: dealCard 0.7s cubic-bezier(.23,1,.32,1) forwards;
   animation-delay: var(--deal-delay, 0s);
   opacity: 0;
 }
@@ -937,13 +1026,14 @@ input {
 .voting-grid {
   display: flex;
   flex-wrap: nowrap;
-  gap: 14px;
+  gap: 16px;
   justify-content: center;
-  max-width: 90vw;
+  max-width: 92vw;
   overflow: visible;
+  padding: 8px 0;
 }
 .voting-grid .card-container {
-  width: 110px; min-width: 110px; height: 154px;
+  width: 105px; min-width: 105px; height: 147px;
 }
 
 /* Results */
@@ -998,12 +1088,12 @@ input {
 /* Game over */
 .game-over-banner {
   font-family: 'Playfair Display', serif;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
   color: var(--amber);
   text-align: center;
   margin-bottom: 4px;
-  text-shadow: 0 0 30px rgba(251,216,127,0.3);
+  text-shadow: 0 0 40px rgba(251,216,127,0.4), 0 2px 8px rgba(0,0,0,0.3);
 }
 .game-over-sub {
   font-size: 14px;
@@ -1446,17 +1536,16 @@ input {
 @media (hover: hover) {
   .btn:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 8px 32px var(--gold-glow);
-    filter: brightness(1.1);
+    box-shadow: 0 6px 0 #8a6508, 0 10px 30px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.35);
+    filter: brightness(1.08);
   }
   .btn--secondary:hover:not(:disabled) {
     border-color: var(--text-dim);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-    filter: none;
+    filter: brightness(1.15);
   }
   .result-card-wrapper:hover .card-container {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 28px rgba(0,0,0,0.4);
+    transform: translateY(-8px);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.5);
   }
   .lb-entry:hover {
     transform: translateX(4px);
@@ -1466,9 +1555,9 @@ input {
     box-shadow: 0 0 24px rgba(240,180,41,0.12);
   }
   .voting-grid .card-container.selectable:hover {
-    transform: translateY(-10px) scale(1.05);
-    box-shadow: 0 12px 28px rgba(0,0,0,0.4);
-    border-color: var(--gold-dim);
+    transform: translateY(-12px) scale(1.06);
+    box-shadow: 0 16px 36px rgba(0,0,0,0.5), 0 0 20px rgba(240,180,41,0.1);
+    border-color: rgba(255,255,255,0.25);
   }
 }
 
@@ -1579,7 +1668,7 @@ input {
       <button class="end-game-btn" id="end-game-btn" onclick="doEndGame()" style="display:none;">Завершить</button>
     </div>
     <div class="game-body" id="game-body"></div>
-    <div id="my-hand-area" style="width:100%;flex-shrink:0;border-top:1px solid rgba(74,80,104,0.3);padding:16px 0 8px;background:linear-gradient(0deg, rgba(0,0,0,0.25), transparent);overflow:visible;">
+    <div id="my-hand-area" style="width:100%;flex-shrink:0;padding:30px 0 24px;background:linear-gradient(0deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.1) 40%, transparent 100%);overflow:visible;">
       <div class="hand-area" id="my-hand"></div>
     </div>
   </div>
@@ -2231,9 +2320,9 @@ function applyFanStyle(el, index, total) {
   if (window.innerWidth <= 600) return; // no fan on mobile
   const mid = (total - 1) / 2;
   const offset = index - mid;
-  const maxAngle = Math.min(4, 20 / total); // degrees per card
+  const maxAngle = Math.min(3.5, 18 / total); // gentler angle per card
   const angle = offset * maxAngle;
-  const curve = Math.abs(offset) * Math.abs(offset) * 2.5; // parabolic rise at edges
+  const curve = offset * offset * 1.8; // softer parabolic rise
   el.style.setProperty('--fan-angle', angle + 'deg');
   el.style.setProperty('--fan-y', curve + 'px');
   el.style.zIndex = total - Math.abs(Math.round(offset));
