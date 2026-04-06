@@ -496,21 +496,49 @@ input {
     background: var(--bg-deep) !important;
     z-index: 10;
     border-top: 1px solid rgba(74,80,104,0.4) !important;
-    padding: 6px 0 env(safe-area-inset-bottom, 4px) !important;
+    padding: 8px 0 env(safe-area-inset-bottom, 4px) !important;
     box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: visible !important;
+  }
+  /* Scroll fade indicators */
+  #game-screen #my-hand-area::before,
+  #game-screen #my-hand-area::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 28px;
+    z-index: 20;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  #game-screen #my-hand-area::before {
+    left: 0;
+    background: linear-gradient(90deg, var(--bg-deep) 0%, transparent 100%);
+    opacity: var(--fade-left, 0);
+  }
+  #game-screen #my-hand-area::after {
+    right: 0;
+    background: linear-gradient(-90deg, var(--bg-deep) 0%, transparent 100%);
+    opacity: var(--fade-right, 1);
   }
   #game-screen #my-hand-area .hand-area {
     overflow-x: auto !important;
-    overflow-y: hidden !important;
+    overflow-y: visible !important;
     flex-wrap: nowrap !important;
     justify-content: flex-start !important;
-    padding: 4px 10px !important;
+    padding: 6px 14px 4px !important;
     gap: 8px;
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
   }
   #game-screen #my-hand-area .hand-area .card-container {
     scroll-snap-align: center;
+  }
+  /* Mobile selected card pops up above hand */
+  #game-screen #my-hand-area .hand-area .card-container.selected {
+    transform: translateY(-8px) scale(1.04);
+    z-index: 15;
   }
 }
 
@@ -803,13 +831,48 @@ input {
   display: flex;
   gap: 10px;
   padding: 12px 8px;
-  overflow-x: auto;
+  overflow: visible;
   max-width: 100%;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: var(--text-muted) transparent;
   justify-content: center;
   flex-wrap: wrap;
+}
+
+/* Desktop fan layout for hand */
+@media (min-width: 601px) {
+  #my-hand-area { overflow: visible !important; padding-top: 24px !important; padding-bottom: 16px !important; }
+  #my-hand-area .hand-area {
+    overflow: visible;
+    flex-wrap: nowrap;
+    gap: 0;
+    padding: 0 20px 10px;
+    justify-content: center;
+    perspective: 900px;
+  }
+  #my-hand-area .hand-area .card-container {
+    --fan-angle: 0deg;
+    --fan-y: 0px;
+    transform: rotate(var(--fan-angle)) translateY(var(--fan-y));
+    transform-origin: bottom center;
+    margin: 0 -8px;
+    transition: transform 0.4s cubic-bezier(.34,1.56,.64,1), border-color 0.25s ease, box-shadow 0.3s ease, margin 0.3s ease;
+  }
+  #my-hand-area .hand-area .card-container.selectable:hover {
+    transform: rotate(0deg) translateY(-28px) scale(1.08) !important;
+    z-index: 20;
+    margin: 0 6px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.4);
+  }
+  #my-hand-area .hand-area .card-container.selected {
+    transform: rotate(0deg) translateY(-32px) scale(1.1) !important;
+    z-index: 21;
+    margin: 0 8px;
+    border-color: var(--gold);
+    box-shadow: 0 0 28px var(--gold-glow), 0 16px 40px rgba(0,0,0,0.5);
+  }
 }
 
 .card-container {
@@ -856,6 +919,18 @@ input {
   font-weight: 700;
   pointer-events: none;
   text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
+/* Card deal animation */
+@keyframes dealCard {
+  0% { opacity: 0; transform: translateY(60px) rotate(8deg) scale(0.7); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(var(--fan-y, 0px)) rotate(var(--fan-angle, 0deg)) scale(1); }
+}
+.card-container.deal-anim {
+  animation: dealCard 0.5s cubic-bezier(.34,1.56,.64,1) forwards;
+  animation-delay: var(--deal-delay, 0s);
+  opacity: 0;
 }
 
 /* Voting grid */
@@ -1281,10 +1356,15 @@ input {
   /* Game over */
   .game-over-banner { font-size: 22px; }
 
-  /* Floating toggles — smaller, tighter to edges */
-  .scores-toggle, .log-toggle { width: 38px; height: 38px; font-size: 15px; bottom: 14px; }
-  .scores-toggle { right: 14px; }
-  .log-toggle { left: 14px; }
+  /* Move floating toggles to top corners on mobile so they don't overlap hand */
+  .scores-toggle, .log-toggle {
+    width: 34px; height: 34px; font-size: 14px;
+    bottom: auto; top: 48px;
+  }
+  .scores-toggle { right: 8px; }
+  .log-toggle { left: 8px; }
+  .scores-panel { bottom: auto; top: 86px; right: 8px; }
+  .log-panel { bottom: auto; top: 86px; left: 8px; }
 
   /* Cards — tighter selection effect on mobile */
   .card-container.selected {
@@ -1499,7 +1579,7 @@ input {
       <button class="end-game-btn" id="end-game-btn" onclick="doEndGame()" style="display:none;">Завершить</button>
     </div>
     <div class="game-body" id="game-body"></div>
-    <div id="my-hand-area" style="width:100%;flex-shrink:0;border-top:1px solid rgba(74,80,104,0.3);padding:12px 0 4px;background:linear-gradient(0deg, rgba(0,0,0,0.2), transparent);">
+    <div id="my-hand-area" style="width:100%;flex-shrink:0;border-top:1px solid rgba(74,80,104,0.3);padding:16px 0 8px;background:linear-gradient(0deg, rgba(0,0,0,0.25), transparent);overflow:visible;">
       <div class="hand-area" id="my-hand"></div>
     </div>
   </div>
@@ -2091,11 +2171,13 @@ function renderMyHand(state) {
     return;
   }
   document.getElementById('my-hand-area').style.display = 'block';
-  state.hand.forEach(cardId => {
+  state.hand.forEach((cardId, i) => {
     const el = createCardElement(cardId);
     el.style.cursor = 'default';
+    applyFanStyle(el, i, state.hand.length);
     container.appendChild(el);
   });
+  setupHandScrollFade();
 }
 
 let selectedCards = [];
@@ -2109,9 +2191,15 @@ function makeHandSelectable(state, count) {
   container.innerHTML = '';
   document.getElementById('my-hand-area').style.display = 'block';
   if (!state.hand) return;
-  state.hand.forEach(cardId => {
+  const isNewRound = !lastRenderedRound || lastRenderedRound !== state.round;
+  state.hand.forEach((cardId, i) => {
     const el = createCardElement(cardId);
     el.classList.add('selectable');
+    applyFanStyle(el, i, state.hand.length);
+    if (isNewRound) {
+      el.classList.add('deal-anim');
+      el.style.setProperty('--deal-delay', (i * 0.08) + 's');
+    }
     el.addEventListener('click', () => {
       if (count === 1) {
         container.querySelectorAll('.card-container').forEach(c => c.classList.remove('selected'));
@@ -2133,6 +2221,39 @@ function makeHandSelectable(state, count) {
     });
     container.appendChild(el);
   });
+  lastRenderedRound = state.round;
+  setupHandScrollFade();
+}
+let lastRenderedRound = null;
+
+// Fan layout: applies rotation + translateY for arc effect (desktop only)
+function applyFanStyle(el, index, total) {
+  if (window.innerWidth <= 600) return; // no fan on mobile
+  const mid = (total - 1) / 2;
+  const offset = index - mid;
+  const maxAngle = Math.min(4, 20 / total); // degrees per card
+  const angle = offset * maxAngle;
+  const curve = Math.abs(offset) * Math.abs(offset) * 2.5; // parabolic rise at edges
+  el.style.setProperty('--fan-angle', angle + 'deg');
+  el.style.setProperty('--fan-y', curve + 'px');
+  el.style.zIndex = total - Math.abs(Math.round(offset));
+}
+
+// Mobile scroll fade indicators
+function setupHandScrollFade() {
+  if (window.innerWidth > 600) return;
+  const area = document.getElementById('my-hand-area');
+  const hand = document.getElementById('my-hand');
+  if (!area || !hand) return;
+  const update = () => {
+    const sl = hand.scrollLeft;
+    const maxSl = hand.scrollWidth - hand.clientWidth;
+    area.style.setProperty('--fade-left', sl > 8 ? '1' : '0');
+    area.style.setProperty('--fade-right', sl < maxSl - 8 ? '1' : '0');
+  };
+  hand.removeEventListener('scroll', update);
+  hand.addEventListener('scroll', update, { passive: true });
+  requestAnimationFrame(update);
 }
 
 function updateSubmitButtons(count) {
