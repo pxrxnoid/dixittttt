@@ -808,6 +808,11 @@ input {
   font-size: 11px;
   margin-bottom: 2px;
 }
+.log-event {
+  font-size: 10px;
+  color: var(--accent-blue);
+  margin-bottom: 2px;
+}
 .log-score-line {
   display: flex;
   justify-content: space-between;
@@ -1645,33 +1650,22 @@ input {
   100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
 }
 
-/* Hurry message */
+/* Hurry message — inline in game body */
 .hurry-banner {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.5);
-  z-index: 250;
-  background: rgba(244,63,94,0.9);
-  backdrop-filter: blur(8px);
-  color: #fff;
+  background: rgba(244,63,94,0.15);
+  border: 1px solid rgba(244,63,94,0.4);
+  color: var(--danger);
   font-weight: 800;
-  font-size: 20px;
-  padding: 16px 32px;
-  border-radius: 16px;
-  border: 2px solid rgba(255,255,255,0.2);
-  box-shadow: 0 12px 40px rgba(244,63,94,0.4);
-  pointer-events: none;
-  opacity: 0;
-  animation: hurryPop 0.5s cubic-bezier(.34,1.56,.64,1) forwards;
+  font-size: 16px;
+  padding: 10px 24px;
+  border-radius: 12px;
   text-align: center;
-}
-.hurry-banner.fade-out {
-  animation: toastOut 0.5s ease-in forwards;
+  animation: hurryPop 0.4s cubic-bezier(.34,1.56,.64,1) forwards;
+  opacity: 0;
 }
 @keyframes hurryPop {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
-  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  0% { opacity: 0; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 /* Sticker system */
@@ -2163,6 +2157,11 @@ function updateLogPanel(state) {
         html += `<div class="log-round-clue">"${entry.clue}"</div>`;
       }
     }
+    if (entry.events) {
+      entry.events.forEach(e => {
+        html += `<div class="log-event">${e}</div>`;
+      });
+    }
     entry.scores.forEach(s => {
       html += `<div class="log-score-line"><span>${s.name}</span><span class="pts${s.pts === 0 ? ' zero' : ''}">+${s.pts}</span></div>`;
     });
@@ -2440,14 +2439,12 @@ function showGameToast(msg) {
 }
 
 function showHurryBanner(name) {
+  const body = document.getElementById('game-body');
+  if (!body || body.querySelector('.hurry-banner')) return;
   const el = document.createElement('div');
   el.className = 'hurry-banner';
   el.textContent = name + ', БЫСТРЕЕ!';
-  document.body.appendChild(el);
-  setTimeout(() => {
-    el.classList.add('fade-out');
-    setTimeout(() => el.remove(), 500);
-  }, 3000);
+  body.appendChild(el);
 }
 
 let extendTimerTimeout = null;

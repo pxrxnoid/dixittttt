@@ -190,6 +190,7 @@ class GameRoom {
       this.checkContributeDone();
     }, remaining);
     const name = this.players[pidx].name;
+    this.roundEvents.push('⏱ ' + name + ' продлил таймер (-2 очка)');
     const toast = JSON.stringify({ type: 'toast', msg: '⏱ ' + name + ' продлил таймер на 30 сек (-2 очка)' });
     for (const c of this.conns) { try { c.send(toast); } catch {} }
     this.sendState();
@@ -458,6 +459,8 @@ class GameRoom {
     this.votes = [];
     this.shuffledPool = [];
     this.roundScores = {};
+    this.roundEvents = [];
+    this.hurrySent = false;
     this.phase = 'storyteller';
     this.startStorytellerTimer();
     this.sendState();
@@ -483,16 +486,19 @@ class GameRoom {
       this.calculateScores();
       this.phase = 'results';
       this.sendState();
-    } else if (this.votes.length === needed - 1 && !this.hurryTimer) {
-      this.hurryTimer = setTimeout(() => {
-        this.hurryTimer = null;
-        if (this.phase !== 'vote') return;
-        const missing = this.players.findIndex((p, i) => i !== this.storytellerIdx && !this.votes.find(v => v.voterIdx === i));
-        if (missing >= 0) {
-          const msg = JSON.stringify({ type: 'hurry', name: this.players[missing].name });
-          for (const c of this.conns) { try { c.send(msg); } catch {} }
-        }
-      }, 5000);
+    } else if (this.votes.length === needed - 1 && !this.hurrySent) {
+      if (!this.hurryTimer) {
+        this.hurryTimer = setTimeout(() => {
+          this.hurryTimer = null;
+          this.hurrySent = true;
+          if (this.phase !== 'vote') return;
+          const missing = this.players.findIndex((p, i) => i !== this.storytellerIdx && !this.votes.find(v => v.voterIdx === i));
+          if (missing >= 0) {
+            const msg = JSON.stringify({ type: 'hurry', name: this.players[missing].name });
+            for (const c of this.conns) { try { c.send(msg); } catch {} }
+          }
+        }, 5000);
+      }
     }
   }
 
@@ -519,7 +525,8 @@ class GameRoom {
     this.roundLog.push({
       round: this.round,
       clue: this.clue,
-      scores: this.players.map((p, i) => ({ name: p.name, pts: scores[i] || 0 }))
+      scores: this.players.map((p, i) => ({ name: p.name, pts: scores[i] || 0 })),
+      events: this.roundEvents.length > 0 ? [...this.roundEvents] : undefined
     });
   }
 
