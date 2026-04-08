@@ -134,6 +134,7 @@ class GameRoom {
     this.usedCards = new Set();
     this.settings = { storytellerTimer: true, actionTimer: true };
     this.stickerCooldowns = {};
+    this.hurryTimer = null;
     // Timers
     this.stTimer = null; this.stDeadline = null;
     this.ctTimer = null; this.ctDeadline = null;
@@ -158,8 +159,40 @@ class GameRoom {
       case 'contribute': return this.handleContribute(ws, data);
       case 'vote': return this.handleVote(ws, data);
       case 'nextRound': return this.handleNextRound(ws);
+      case 'extendTimer': return this.handleExtendTimer(ws);
       case 'sticker': return this.handleSticker(ws, data);
     }
+  }
+
+  handleExtendTimer(ws) {
+    if (this.phase !== 'storyteller') return;
+    const pidx = this.getPlayerIdx(ws);
+    if (pidx < 0 || pidx !== this.storytellerIdx) return;
+    if (this.players[pidx].score < 2) return;
+    if (!this.stDeadline || !this.stTimer) return;
+    this.players[pidx].score -= 2;
+    this.stDeadline += 30000;
+    clearTimeout(this.stTimer);
+    const remaining = Math.max(0, this.stDeadline - Date.now());
+    this.stTimer = setTimeout(() => {
+      if (this.phase !== 'storyteller') return;
+      const st = this.players[this.storytellerIdx];
+      if (!st || st.hand.length === 0) return;
+      const cardId = st.hand[Math.floor(Math.random() * st.hand.length)];
+      this.storytellerCard = cardId;
+      this.clue = '🤡 ' + st.name + ' — тупой лох, не успел';
+      st.hand = st.hand.filter(c => c !== cardId);
+      this.contributions.push({ playerIdx: this.storytellerIdx, cardId });
+      this.phase = 'contribute';
+      this.clearTimer('st');
+      this.startActionTimer('ct');
+      this.sendState();
+      this.checkContributeDone();
+    }, remaining);
+    const name = this.players[pidx].name;
+    const toast = JSON.stringify({ type: 'toast', msg: '⏱ ' + name + ' продлил таймер на 30 сек (-2 очка)' });
+    for (const c of this.conns) { try { c.send(toast); } catch {} }
+    this.sendState();
   }
 
   handleSticker(ws, data) {
@@ -337,7 +370,7 @@ class GameRoom {
       if (!st || st.hand.length === 0) return;
       const cardId = st.hand[Math.floor(Math.random() * st.hand.length)];
       this.storytellerCard = cardId;
-      this.clue = '...';
+      this.clue = '🤡 ' + st.name + ' — тупой лох, не успел';
       st.hand = st.hand.filter(c => c !== cardId);
       this.contributions.push({ playerIdx: this.storytellerIdx, cardId });
       this.phase = 'contribute';
@@ -443,17 +476,23 @@ class GameRoom {
   }
 
   checkVoteDone() {
-    const nonBotNonSt = this.players.filter((p, i) => i !== this.storytellerIdx && !p.isBot);
-    const humanVotes = this.votes.filter(v => nonBotNonSt.some((_, ni) => {
-      const realIdx = this.players.findIndex((pp, ii) => ii !== this.storytellerIdx && !pp.isBot && pp === nonBotNonSt[ni]);
-      return v.voterIdx === realIdx;
-    }));
-    // Simpler: just check total votes >= non-storyteller count
-    if (this.votes.length >= this.players.length - 1) {
+    const needed = this.players.length - 1;
+    if (this.votes.length >= needed) {
       this.clearTimer('vt');
+      if (this.hurryTimer) { clearTimeout(this.hurryTimer); this.hurryTimer = null; }
       this.calculateScores();
       this.phase = 'results';
       this.sendState();
+    } else if (this.votes.length === needed - 1 && !this.hurryTimer) {
+      this.hurryTimer = setTimeout(() => {
+        this.hurryTimer = null;
+        if (this.phase !== 'vote') return;
+        const missing = this.players.findIndex((p, i) => i !== this.storytellerIdx && !this.votes.find(v => v.voterIdx === i));
+        if (missing >= 0) {
+          const msg = JSON.stringify({ type: 'hurry', name: this.players[missing].name });
+          for (const c of this.conns) { try { c.send(msg); } catch {} }
+        }
+      }, 5000);
     }
   }
 
@@ -569,7 +608,7 @@ class GameRoom {
     // Timer info for whichever phase is active
     if (this.phase === 'storyteller' && this.stDeadline) {
       s.timerRemaining = Math.max(0, this.stDeadline - Date.now());
-      s.timerTotal = STORYTELLER_TIMEOUT;
+      s.timerTotal = Math.max(STORYTELLER_TIMEOUT, s.timerRemaining);
     }
     if (this.phase === 'contribute' && this.ctDeadline) {
       s.timerRemaining = Math.max(0, this.ctDeadline - Date.now());
