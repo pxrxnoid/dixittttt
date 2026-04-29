@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mesh Gradient Generator</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f0f0f0;
+  --panel: #ffffff;
+  --border: #e5e5e5;
+  --text: #1a1a1a;
+  --text-secondary: #888;
+  --accent: #3b82f6;
+  --radius: 8px;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  font-size: 12px;
+  display: flex;
+}
+
+.preview-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
+}
+
+.canvas-wrapper {
+  position: relative;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+#preview-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.orb-handle {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  pointer-events: all;
+  cursor: grab;
+  transition: border-color 0.15s;
+}
+.orb-handle:hover, .orb-handle.selected {
+  border-color: rgba(0,0,0,0.3);
+}
+.orb-handle.selected {
+  border-color: var(--accent);
+}
+.orb-handle:active { cursor: grabbing; }
+
+.panel {
+  width: 320px;
+  min-width: 320px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-header h1 {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.panel-header p {
+  color: var(--text-secondary);
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.panel-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px 100px;
+}
+
+.section { margin-bottom: 20px; }
+.section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.row label { font-size: 11px; color: var(--text-secondary); min-width: 56px; }
+
+.size-presets { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.size-preset {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s;
+}
+.size-preset:hover { border-color: var(--accent); }
+.size-preset.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+input[type="number"] {
+  width: 64px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: inherit;
+  outline: none;
+}
+input[type="number"]:focus { border-color: var(--accent); }
+
+input[type="color"] {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px;
+  cursor: pointer;
+  background: white;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.btn {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn:hover { border-color: #ccc; background: #fafafa; }
+.btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn-primary:hover { background: #2563eb; }
+.btn-danger { color: #ef4444; }
+.btn-danger:hover { background: #fef2f2; border-color: #fca5a5; }
+
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.palette-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.palette-btn {
+  display: flex;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  align-items: center;
+  transition: all 0.15s;
+}
+.palette-btn:hover { border-color: var(--accent); }
+.palette-btn.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.palette-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.palette-label {
+  font-size: 10px;
+  margin-left: 4px;
+  color: var(--text-secondary);
+}
+
+.orb-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.orb-card.selected { border-color: var(--accent); }
+
+.orb-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.orb-card-header:hover { background: #fafafa; }
+
+.orb-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+
+.orb-card-title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.orb-card-pos {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.orb-card-body {
+  padding: 8px 10px 12px;
+  border-top: 1px solid var(--border);
+  display: none;
+}
+.orb-card.expanded .orb-card-body { display: block; }
+
+.orb-prop { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.orb-prop label { font-size: 10px; color: var(--text-secondary); width: 44px; flex-shrink: 0; }
+.orb-prop .val { font-size: 10px; color: var(--text-secondary); width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.delete-btn:hover { color: #ef4444; }
+
+.chevron {
+  transition: transform 0.2s;
+  color: #ccc;
+}
+.orb-card.expanded .chevron { transform: rotate(90deg); }
+
+.shortcuts {
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin-top: 8px;
+}
+.shortcuts kbd {
+  background: var(--bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  font-family: inherit;
+  font-size: 10px;
+}
+
+.panel-scroll::-webkit-scrollbar { width: 6px; }
+.panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.panel-scroll::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="preview-area" id="previewArea">
+  <div class="canvas-wrapper" id="canvasWrapper">
+    <canvas id="preview-canvas"></canvas>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h1>Mesh Gradient</h1>
+    <p>Drag orbs to position, scroll to resize</p>
+  </div>
+  <div class="panel-scroll">
+    <div class="section">
+      <div class="section-title">Canvas</div>
+      <div class="size-presets" id="sizePresets">
+        <button class="size-preset" data-w="1080" data-h="1080">1:1</button>
+        <button class="size-preset active" data-w="1080" data-h="1350">4:5</button>
+        <button class="size-preset" data-w="1920" data-h="1080">16:9</button>
+        <button class="size-preset" data-w="1080" data-h="1920">9:16</button>
+        <button class="size-preset" data-w="0" data-h="0">Custom</button>
+      </div>
+      <div class="row">
+        <label>Width</label>
+        <input type="number" id="canvasW" value="1080" min="100" max="4096">
+        <label>Height</label>
+        <input type="number" id="canvasH" value="1350" min="100" max="4096">
+      </div>
+      <div class="row">
+        <label>Background</label>
+        <input type="color" id="bgColor" value="#F5F5F0">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Palette</div>
+      <div class="palette-row" id="paletteRow"></div>
+    </div>
+
+    <div class="section">
+      <div class="btn-row">
+        <button class="btn btn-primary" id="addOrbBtn">+ Add orb</button>
+        <button class="btn" id="randomizeBtn">Randomize</button>
+        <button class="btn btn-danger" id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Orbs</div>
+      <div id="orbList"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Export</div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="exportBtn">Export PNG</button>
+        <button class="btn" id="copyBtn">Copy to clipboard</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Shortcuts</div>
+      <div class="shortcuts">
+        <kbd>R</kbd> Randomize &nbsp;
+        <kbd>E</kbd> Export &nbsp;
+        <kbd>Space</kbd> Add orb at cursor<br>
+        <kbd>Scroll</kbd> Resize orb &nbsp;
+        <kbd>Shift+Drag</kbd> Adjust blur<br>
+        <kbd>Double-click</kbd> Delete orb &nbsp;
+        <kbd>Delete</kbd> Remove selected
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const palettes = [
+  { name: 'Pastel', colors: ['#86efac','#67e8f9','#a5f3fc','#6ee7b7','#bbf7d0'] },
+  { name: 'Vivid', colors: ['#3b82f6','#84cc16','#ec4899','#8b5cf6','#06b6d4'] },
+  { name: 'Sunset', colors: ['#fb923c','#f472b6','#facc15','#f87171','#fbbf24'] },
+  { name: 'Ocean', colors: ['#06b6d4','#14b8a6','#3b82f6','#0ea5e9','#22d3ee'] },
+  { name: 'Mono', colors: ['#1a1a1a','#444444','#777777','#aaaaaa','#dddddd'] },
+];
+
+let canvasW = 1080, canvasH = 1350;
+let bgColor = '#F5F5F0';
+let orbs = [];
+let selectedOrbId = null;
+let nextOrbId = 1;
+let activePalette = 0;
+let cursorCanvasX = 0, cursorCanvasY = 0;
+
+const previewArea = document.getElementById('previewArea');
+const canvasWrapper = document.getElementById('canvasWrapper');
+const canvas = document.getElementById('preview-canvas');
+const ctx = canvas.getContext('2d');
+
+function createOrb(x, y, color) {
+  return {
+    id: nextOrbId++,
+    x: x ?? canvasW / 2 + (Math.random() - 0.5) * canvasW * 0.6,
+    y: y ?? canvasH / 2 + (Math.random() - 0.5) * canvasH * 0.6,
+    radius: 150 + Math.random() * 250,
+    blur: 80 + Math.random() * 120,
+    opacity: 0.7 + Math.random() * 0.3,
+    color: color || palettes[activePalette].colors[Math.floor(Math.random() * palettes[activePalette].colors.length)],
+  };
+}
+
+function initOrbs() {
+  orbs = [];
+  const cols = palettes[activePalette].colors;
+  const positions = [
+    [0.3, 0.25], [0.55, 0.18], [0.7, 0.45], [0.25, 0.55], [0.5, 0.75]
+  ];
+  for (let i = 0; i < 5; i++) {
+    orbs.push({
+      id: nextOrbId++,
+      x: canvasW * positions[i][0],
+      y: canvasH * positions[i][1],
+      radius: 200 + Math.random() * 200,
+      blur: 100 + Math.random() * 80,
+      opacity: 0.75 + Math.random() * 0.25,
+      color: cols[i % cols.length],
+    });
+  }
+}
+
+function fitCanvas() {
+  const areaW = previewArea.clientWidth - 64;
+  const areaH = previewArea.clientHeight - 64;
+  const scale = Math.min(areaW / canvasW, areaH / canvasH, 1);
+  const dispW = canvasW * scale;
+  const dispH = canvasH * scale;
+  canvasWrapper.style.width = dispW + 'px';
+  canvasWrapper.style.height = dispH + 'px';
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  canvas.style.width = dispW + 'px';
+  canvas.style.height = dispH + 'px';
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvasW, canvasH);
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  for (const orb of orbs) {
+    ctx.save();
+    ctx.globalAlpha = orb.opacity;
+    ctx.filter = `blur(${orb.blur}px)`;
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
+    ctx.fillStyle = orb.color;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function getScale() {
+  return canvasW / canvasWrapper.clientWidth;
+}
+
+function canvasCoords(e) {
+  const rect = canvasWrapper.getBoundingClientRect();
+  const s = getScale();
+  return {
+    x: (e.clientX - rect.left) * s,
+    y: (e.clientY - rect.top) * s,
+  };
+}
+
+function orbAtPoint(cx, cy) {
+  for (let i = orbs.length - 1; i >= 0; i--) {
+    const o = orbs[i];
+    const dx = cx - o.x, dy = cy - o.y;
+    if (dx * dx + dy * dy < (o.radius + o.blur) * (o.radius + o.blur)) return o;
+  }
+  return null;
+}
+
+// Drag state
+let dragging = null;
+let dragOffX = 0, dragOffY = 0;
+let shiftDrag = false;
+let shiftDragStartY = 0;
+let shiftDragStartBlur = 0;
+
+canvasWrapper.addEventListener('mousedown', (e) => {
+  const { x, y } = canvasCoords(e);
+  const orb = orbAtPoint(x, y);
+  if (orb) {
+    selectedOrbId = orb.id;
+    if (e.shiftKey) {
+      shiftDrag = true;
+      shiftDragStartY = e.clientY;
+      shiftDragStartBlur = orb.blur;
+      dragging = orb;
+    } else {
+      dragging = orb;
+      dragOffX = orb.x - x;
+      dragOffY = orb.y - y;
+      shiftDrag = false;
+    }
+  } else {
+    selectedOrbId = null;
+  }
+  renderUI();
+});
+
+window.addEventListener('mousemove', (e) => {
+  const rect = canvasWrapper.getBoundingClientRect();
+  const s = getScale();
+  cursorCanvasX = (e.clientX - rect.left) * s;
+  cursorCanvasY = (e.clientY - rect.top) * s;
+
+  if (!dragging) return;
+  if (shiftDrag) {
+    const dy = shiftDragStartY - e.clientY;
+    dragging.blur = Math.max(0, Math.min(300, shiftDragStartBlur + dy));
+  } else {
+    const { x, y } = canvasCoords(e);
+    dragging.x = x + dragOffX;
+    dragging.y = y + dragOffY;
+  }
+  render();
+  updateOrbCard(dragging);
+});
+
+window.addEventListener('mouseup', () => {
+  dragging = null;
+  shiftDrag = false;
+});
+
+canvasWrapper.addEventListener('dblclick', (e) => {
+  const { x, y } = canvasCoords(e);
+  const orb = orbAtPoint(x, y);
+  if (orb) {
+    orbs = orbs.filter(o => o.id !== orb.id);
+    if (selectedOrbId === orb.id) selectedOrbId = null;
+    render();
+    renderUI();
+  }
+});
+
+canvasWrapper.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const { x, y } = canvasCoords(e);
+  const orb = orbAtPoint(x, y);
+  if (orb) {
+    orb.radius = Math.max(50, Math.min(800, orb.radius - e.deltaY * 0.5));
+    render();
+    updateOrbCard(orb);
+  }
+}, { passive: false });
+
+// Keyboard shortcuts
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'KeyR') { randomizeAll(); }
+  if (e.code === 'KeyE') { exportPNG(); }
+  if (e.code === 'Space') {
+    e.preventDefault();
+    addOrb(cursorCanvasX, cursorCanvasY);
+  }
+  if ((e.code === 'Delete' || e.code === 'Backspace') && selectedOrbId) {
+    orbs = orbs.filter(o => o.id !== selectedOrbId);
+    selectedOrbId = null;
+    render();
+    renderUI();
+  }
+});
+
+// Panel controls
+document.getElementById('addOrbBtn').addEventListener('click', () => addOrb());
+document.getElementById('randomizeBtn').addEventListener('click', randomizeAll);
+document.getElementById('resetBtn').addEventListener('click', () => { initOrbs(); selectedOrbId = null; render(); renderUI(); });
+document.getElementById('exportBtn').addEventListener('click', exportPNG);
+document.getElementById('copyBtn').addEventListener('click', copyPNG);
+
+document.getElementById('bgColor').addEventListener('input', (e) => { bgColor = e.target.value; render(); });
+document.getElementById('canvasW').addEventListener('change', (e) => { canvasW = +e.target.value || 1080; updateCanvasSize(); });
+document.getElementById('canvasH').addEventListener('change', (e) => { canvasH = +e.target.value || 1350; updateCanvasSize(); });
+
+function updateCanvasSize() {
+  document.getElementById('canvasW').value = canvasW;
+  document.getElementById('canvasH').value = canvasH;
+  fitCanvas();
+  render();
+  highlightSizePreset();
+}
+
+// Size presets
+const sizePresets = document.getElementById('sizePresets');
+sizePresets.addEventListener('click', (e) => {
+  const btn = e.target.closest('.size-preset');
+  if (!btn) return;
+  const w = +btn.dataset.w, h = +btn.dataset.h;
+  if (w === 0) return; // custom - just deselect
+  canvasW = w; canvasH = h;
+  updateCanvasSize();
+});
+
+function highlightSizePreset() {
+  sizePresets.querySelectorAll('.size-preset').forEach(b => {
+    const w = +b.dataset.w, h = +b.dataset.h;
+    b.classList.toggle('active', w === canvasW && h === canvasH);
+  });
+}
+
+// Palettes
+function buildPalettes() {
+  const row = document.getElementById('paletteRow');
+  row.innerHTML = '';
+  palettes.forEach((p, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'palette-btn' + (i === activePalette ? ' active' : '');
+    btn.innerHTML = p.colors.slice(0, 4).map(c => `<span class="palette-dot" style="background:${c}"></span>`).join('') +
+      `<span class="palette-label">${p.name}</span>`;
+    btn.addEventListener('click', () => {
+      activePalette = i;
+      applyPalette(p.colors);
+      buildPalettes();
+    });
+    row.appendChild(btn);
+  });
+}
+
+function applyPalette(colors) {
+  orbs.forEach((o, i) => { o.color = colors[i % colors.length]; });
+  render();
+  renderUI();
+}
+
+function addOrb(x, y) {
+  if (orbs.length >= 15) return;
+  const orb = createOrb(
+    x ?? canvasW / 2 + (Math.random() - 0.5) * 200,
+    y ?? canvasH / 2 + (Math.random() - 0.5) * 200,
+  );
+  orbs.push(orb);
+  selectedOrbId = orb.id;
+  render();
+  renderUI();
+}
+
+function randomizeAll() {
+  orbs.forEach(o => {
+    o.x = Math.random() * canvasW;
+    o.y = Math.random() * canvasH;
+    o.radius = 150 + Math.random() * 300;
+    o.blur = 60 + Math.random() * 140;
+    o.opacity = 0.6 + Math.random() * 0.4;
+    o.color = palettes[activePalette].colors[Math.floor(Math.random() * palettes[activePalette].colors.length)];
+  });
+  render();
+  renderUI();
+}
+
+function exportPNG() {
+  const offscreen = document.createElement('canvas');
+  offscreen.width = canvasW;
+  offscreen.height = canvasH;
+  const octx = offscreen.getContext('2d');
+  octx.fillStyle = bgColor;
+  octx.fillRect(0, 0, canvasW, canvasH);
+  for (const orb of orbs) {
+    octx.save();
+    octx.globalAlpha = orb.opacity;
+    octx.filter = `blur(${orb.blur}px)`;
+    octx.beginPath();
+    octx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
+    octx.fillStyle = orb.color;
+    octx.fill();
+    octx.restore();
+  }
+  const link = document.createElement('a');
+  link.download = `mesh-gradient-${canvasW}x${canvasH}.png`;
+  link.href = offscreen.toDataURL('image/png');
+  link.click();
+}
+
+async function copyPNG() {
+  const offscreen = document.createElement('canvas');
+  offscreen.width = canvasW;
+  offscreen.height = canvasH;
+  const octx = offscreen.getContext('2d');
+  octx.fillStyle = bgColor;
+  octx.fillRect(0, 0, canvasW, canvasH);
+  for (const orb of orbs) {
+    octx.save();
+    octx.globalAlpha = orb.opacity;
+    octx.filter = `blur(${orb.blur}px)`;
+    octx.beginPath();
+    octx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
+    octx.fillStyle = orb.color;
+    octx.fill();
+    octx.restore();
+  }
+  offscreen.toBlob(async (blob) => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    } catch (err) {
+      console.error('Copy failed', err);
+    }
+  }, 'image/png');
+}
+
+// UI rendering
+const orbList = document.getElementById('orbList');
+
+function renderUI() {
+  orbList.innerHTML = '';
+  orbs.forEach((orb, idx) => {
+    const card = document.createElement('div');
+    card.className = 'orb-card' + (orb.id === selectedOrbId ? ' selected expanded' : '');
+    card.dataset.orbId = orb.id;
+    card.innerHTML = `
+      <div class="orb-card-header">
+        <span class="orb-swatch" style="background:${orb.color}"></span>
+        <span class="orb-card-title">Orb ${idx + 1}</span>
+        <span class="orb-card-pos">${Math.round(orb.x)}, ${Math.round(orb.y)}</span>
+        <svg class="chevron" width="12" height="12" viewBox="0 0 12 12"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+        <button class="delete-btn" data-id="${orb.id}" title="Delete">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.5"/></svg>
+        </button>
+      </div>
+      <div class="orb-card-body">
+        <div class="orb-prop">
+          <label>Color</label>
+          <input type="color" value="${orb.color}" data-prop="color" data-id="${orb.id}">
+        </div>
+        <div class="orb-prop">
+          <label>Size</label>
+          <input type="range" min="50" max="800" value="${orb.radius}" data-prop="radius" data-id="${orb.id}">
+          <span class="val">${Math.round(orb.radius)}</span>
+        </div>
+        <div class="orb-prop">
+          <label>Blur</label>
+          <input type="range" min="0" max="300" value="${orb.blur}" data-prop="blur" data-id="${orb.id}">
+          <span class="val">${Math.round(orb.blur)}</span>
+        </div>
+        <div class="orb-prop">
+          <label>Opacity</label>
+          <input type="range" min="0" max="100" value="${Math.round(orb.opacity * 100)}" data-prop="opacity" data-id="${orb.id}">
+          <span class="val">${Math.round(orb.opacity * 100)}%</span>
+        </div>
+      </div>
+    `;
+    orbList.appendChild(card);
+  });
+
+  // Event delegation
+  orbList.querySelectorAll('.orb-card-header').forEach(h => {
+    h.addEventListener('click', (e) => {
+      if (e.target.closest('.delete-btn')) return;
+      const card = h.closest('.orb-card');
+      const id = +card.dataset.orbId;
+      if (selectedOrbId === id) {
+        card.classList.toggle('expanded');
+      } else {
+        selectedOrbId = id;
+        renderUI();
+      }
+    });
+  });
+
+  orbList.querySelectorAll('.delete-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = +b.dataset.id;
+      orbs = orbs.filter(o => o.id !== id);
+      if (selectedOrbId === id) selectedOrbId = null;
+      render();
+      renderUI();
+    });
+  });
+
+  orbList.querySelectorAll('input[data-prop]').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      const id = +inp.dataset.id;
+      const prop = inp.dataset.prop;
+      const orb = orbs.find(o => o.id === id);
+      if (!orb) return;
+      if (prop === 'color') {
+        orb.color = inp.value;
+        inp.closest('.orb-card').querySelector('.orb-swatch').style.background = inp.value;
+      } else if (prop === 'opacity') {
+        orb.opacity = +inp.value / 100;
+      } else {
+        orb[prop] = +inp.value;
+      }
+      const valSpan = inp.parentElement.querySelector('.val');
+      if (valSpan) {
+        valSpan.textContent = prop === 'opacity' ? Math.round(orb.opacity * 100) + '%' : Math.round(orb[prop]);
+      }
+      render();
+    });
+  });
+}
+
+function updateOrbCard(orb) {
+  const card = orbList.querySelector(`[data-orb-id="${orb.id}"]`);
+  if (!card) return;
+  card.querySelector('.orb-card-pos').textContent = `${Math.round(orb.x)}, ${Math.round(orb.y)}`;
+  const radiusInp = card.querySelector('[data-prop="radius"]');
+  if (radiusInp) { radiusInp.value = orb.radius; radiusInp.parentElement.querySelector('.val').textContent = Math.round(orb.radius); }
+  const blurInp = card.querySelector('[data-prop="blur"]');
+  if (blurInp) { blurInp.value = orb.blur; blurInp.parentElement.querySelector('.val').textContent = Math.round(orb.blur); }
+}
+
+// Resize observer
+new ResizeObserver(() => { fitCanvas(); render(); }).observe(previewArea);
+
+// Init
+initOrbs();
+buildPalettes();
+fitCanvas();
+render();
+renderUI();
+</script>
+</body>
+</html>
